@@ -12,6 +12,11 @@ class ZT410BluetoothPrinter {
         this.maxLineWidth = 226; // pixels at 8.5pt/mm
         this.maxLabelHeight = 141; // pixels
         this.dpi = 203; // Zebra ZT410 resolution (203 DPI)
+        
+        // UUID cho Zebra printer serial port
+        // Services từ Zebra printer thông thường
+        this.ZEBRA_SERVICE_UUID = '0000ff00-0000-1000-8000-00805f9b34fb';
+        this.ZEBRA_CHARACTERISTIC_UUID = '0000ff01-0000-1000-8000-00805f9b34fb';
     }
 
     /**
@@ -22,13 +27,18 @@ class ZT410BluetoothPrinter {
             console.log('🔍 Đang tìm kiếm máy in ZT410...');
             
             // Yêu cầu người dùng chọn thiết bị
+            // Chỉ lọc theo tên, không dùng service UUID
             this.device = await navigator.bluetooth.requestDevice({
                 filters: [
                     { namePrefix: 'ZT410' },
                     { namePrefix: 'Zebra' },
-                    { services: ['ff00'] } // Generic Bluetooth service
+                    { namePrefix: 'ZT' }
                 ],
-                optionalServices: ['ff00', '180a']
+                optionalServices: [
+                    this.ZEBRA_SERVICE_UUID,
+                    '0000180a-0000-1000-8000-00805f9b34fb', // Device Information Service
+                    '0000180f-0000-1000-8000-00805f9b34fb'  // Battery Service
+                ]
             });
 
             console.log('✅ Tìm thấy thiết bị:', this.device.name);
@@ -38,13 +48,63 @@ class ZT410BluetoothPrinter {
             this.server = await this.device.gatt.connect();
             console.log('✅ Kết nối GATT thành công');
 
-            // Lấy service
-            this.service = await this.server.getPrimaryService('ff00');
-            console.log('✅ Lấy service thành công');
+            // Lấy service - thử với UUID đầy đủ
+            try {
+                this.service = await this.server.getPrimaryService(this.ZEBRA_SERVICE_UUID);
+                console.log('✅ Lấy Zebra service (0xFF00) thành công');
+            } catch (e) {
+                console.warn('⚠️ Không tìm thấy Zebra service, thử tìm service khác...');
+                
+                // Liệt kê tất cả các service và thử lấy service đầu tiên
+                const services = await this.server.getPrimaryServices();
+                if (services.length > 0) {
+                    console.log('📋 Các service có sẵn:');
+                    services.forEach((svc, idx) => {
+                        console.log(`  ${idx}: ${svc.uuid}`);
+                    });
+                    
+                    // Lấy service đầu tiên
+                    this.service = services[0];
+                    console.log(`✅ Sử dụng service: ${this.service.uuid}`);
+                } else {
+                    throw new Error('Không tìm thấy service nào trên thiết bị');
+                }
+            }
 
             // Lấy characteristic để ghi dữ liệu
-            this.characteristic = await this.service.getCharacteristic('ff01');
-            console.log('✅ Lấy characteristic thành công');
+            try {
+                this.characteristic = await this.service.getCharacteristic(this.ZEBRA_CHARACTERISTIC_UUID);
+                console.log('✅ Lấy Zebra characteristic (0xFF01) thành công');
+            } catch (e) {
+                console.warn('⚠️ Không tìm thấy Zebra characteristic, thử tìm characteristic khác...');
+                
+                // Liệt kê tất cả các characteristic
+                const chars = await this.service.getCharacteristics();
+                if (chars.length > 0) {
+                    console.log('📋 Các characteristic có sẵn:');
+                    chars.forEach((char, idx) => {
+                        console.log(`  ${idx}: ${char.uuid}`);
+                        console.log(`     Properties: ${JSON.stringify(char.properties)}`);
+                    });
+                    
+                    // Tìm characteristic có property write hoặc writeWithoutResponse
+                    for (let char of chars) {
+                        if (char.properties.write || char.properties.writeWithoutResponse) {
+                            this.characteristic = char;
+                            console.log(`✅ Sử dụng characteristic: ${this.characteristic.uuid}`);
+                            break;
+                        }
+                    }
+                    
+                    // Nếu không tìm được, lấy characteristic đầu tiên
+                    if (!this.characteristic) {
+                        this.characteristic = chars[0];
+                        console.log(`✅ Sử dụng characteristic mặc định: ${this.characteristic.uuid}`);
+                    }
+                } else {
+                    throw new Error('Không tìm thấy characteristic nào');
+                }
+            }
 
             this.isConnected = true;
             console.log('🎉 Kết nối Bluetooth thành công!');
@@ -96,13 +156,28 @@ class ZT410BluetoothPrinter {
             const encoder = new TextEncoder();
             const data = encoder.encode(command);
             
-            // ZT410 có thể ghi tối đa 20 bytes mỗi lần, nên chia thành chunks
-            const chunkSize = 20;
+            // Kiểm tra xem characteristic hỗ trợ writeWithoutResponse hay write
+            let useWriteWithoutResponse = this.characteristic.properties.writeWithoutResponse;
+            
+            // ZT410 có thể ghi tối đa 512 bytes mỗi lần (hoặc ít hơn tùy thiết bị)
+            const chunkSize = 512;
             for (let i = 0; i < data.length; i += chunkSize) {
                 const chunk = data.slice(i, i + chunkSize);
-                await this.characteristic.writeValue(chunk);
+                
+                try {
+                    if (useWriteWithoutResponse) {
+                        await this.characteristic.writeValueWithoutResponse(chunk);
+                    } else {
+                        await this.characteristic.writeValue(chunk);
+                    }
+                } catch (e) {
+                    // Nếu writeWithoutResponse thất bại, thử write
+                    console.warn('⚠️ writeWithoutResponse thất bại, thử write:', e);
+                    await this.characteristic.writeValue(chunk);
+                }
+                
                 // Delay giữa các chunks
-                await this.delay(10);
+                await this.delay(50);
             }
             
             console.log('✅ Gửi lệnh thành công');
