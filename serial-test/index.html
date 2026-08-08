@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZT410 Bluetooth Serial Test</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🖨️ ZT410 Bluetooth Serial Test</h1>
+            <p class="subtitle">Web Serial API (RFCOMM) Testing</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Printer Info Section -->
+            <section class="card">
+                <h2 class="card-title">📱 Printer Information</h2>
+                <div class="info-row">
+                    <label>Model:</label>
+                    <span>Zebra ZT410</span>
+                </div>
+                <div class="info-row">
+                    <label>MAC Address:</label>
+                    <span>AC:3F:A4:AB:02:4C</span>
+                </div>
+                <div class="info-row">
+                    <label>Firmware:</label>
+                    <span>V75.20.14Z</span>
+                </div>
+                <div class="info-row">
+                    <label>Language:</label>
+                    <span>ZPL & XML</span>
+                </div>
+            </section>
+
+            <!-- Connection Status Section -->
+            <section class="card">
+                <h2 class="card-title">🔌 Connection Status</h2>
+                <div class="status-box">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">Disconnected</span>
+                </div>
+            </section>
+
+            <!-- Device Selection Section -->
+            <section class="card">
+                <h2 class="card-title">🔧 Device Settings</h2>
+                
+                <div class="form-group">
+                    <label for="baudRateSelect">Baud Rate:</label>
+                    <select id="baudRateSelect">
+                        <option value="9600">9600</option>
+                        <option value="19200">19200</option>
+                        <option value="38400">38400</option>
+                        <option value="57600">57600</option>
+                        <option value="115200" selected>115200</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Selected Device:</label>
+                    <div class="device-info" id="deviceInfo">
+                        <span class="empty">No device selected</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Serial Port Info:</label>
+                    <div class="device-info" id="portInfo">
+                        <span class="empty">No port opened</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Action Buttons Section -->
+            <section class="card">
+                <h2 class="card-title">⚡ Actions</h2>
+                
+                <div class="button-group">
+                    <button id="connectBtn" class="btn btn-primary">
+                        📡 CONNECT ZT410
+                    </button>
+                    <button id="printBtn" class="btn btn-success" disabled>
+                        🖨️ PRINT TEST
+                    </button>
+                    <button id="disconnectBtn" class="btn btn-danger" disabled>
+                        ❌ DISCONNECT
+                    </button>
+                </div>
+            </section>
+
+            <!-- Console Output Section -->
+            <section class="card">
+                <h2 class="card-title">📋 Console Output</h2>
+                <div class="console" id="console">
+                    <div class="console-line console-info">🟢 Web Serial API Tester initialized</div>
+                </div>
+            </section>
+
+            <!-- ZPL Command Preview -->
+            <section class="card">
+                <h2 class="card-title">📝 ZPL Command Preview</h2>
+                <pre id="zplPreview" class="zpl-preview">^XA
+^FO30,30
+^A0N,30,30
+^FDZT410 TEST PRINT^FS
+^FO30,80
+^BY2
+^BCN,60,Y,N,N
+^FD123456789^FS
+^XZ</pre>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>💡 Tip: Open DevTools (F12) to see detailed logs</p>
+            <p>📌 Make sure Bluetooth is enabled and ZT410 is paired</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
