@@ -1,52 +1,122 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ZT410 Bluetooth Test</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZT Label Designer - Thiết kế Nhãn</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <main class="container">
-    <h1>ZT410 Bluetooth Test</h1>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-tag"></i> ZT Label Designer</h1>
+                <div class="header-actions">
+                    <button class="btn btn-success" id="btnSave"><i class="fas fa-save"></i> Lưu</button>
+                    <button class="btn btn-info" id="btnLoad"><i class="fas fa-folder-open"></i> Tải</button>
+                    <button class="btn btn-warning" id="btnPrint"><i class="fas fa-print"></i> In</button>
+                </div>
+            </div>
+        </header>
 
-    <section class="info">
-      <div><strong>Printer:</strong> Zebra ZT410</div>
-      <div><strong>MAC:</strong> AC:3F:A4:AB:02:4C</div>
-      <div><strong>Status:</strong> <span id="status">Disconnected</span></div>
-    </section>
+        <div class="main-content">
+            <!-- Toolbar -->
+            <aside class="toolbar">
+                <div class="tool-section">
+                    <h3>Công cụ</h3>
+                    <button class="tool-btn active" id="toolSelect" title="Chọn (V)">
+                        <i class="fas fa-arrow-pointer"></i> Chọn
+                    </button>
+                    <button class="tool-btn" id="toolText" title="Văn bản (T)">
+                        <i class="fas fa-font"></i> Văn bản
+                    </button>
+                    <button class="tool-btn" id="toolImage" title="Hình ảnh (I)">
+                        <i class="fas fa-image"></i> Hình ảnh
+                    </button>
+                    <button class="tool-btn" id="toolRect" title="Hình chữ nhật (R)">
+                        <i class="fas fa-square"></i> Hình
+                    </button>
+                    <button class="tool-btn" id="toolQR" title="QR Code (Q)">
+                        <i class="fas fa-qrcode"></i> QR Code
+                    </button>
+                </div>
 
-    <section class="controls">
-      <label for="baud">Baud rate</label>
-      <select id="baud" aria-label="baud rate">
-        <option value="9600">9600</option>
-        <option value="19200">19200</option>
-        <option value="38400">38400</option>
-        <option value="57600">57600</option>
-        <option value="115200" selected>115200</option>
-      </select>
+                <div class="tool-section">
+                    <h3>Thuộc tính</h3>
+                    <div class="property">
+                        <label>Màu sắc:</label>
+                        <input type="color" id="colorPicker" value="#000000">
+                    </div>
+                    <div class="property">
+                        <label>Kích thước chữ:</label>
+                        <input type="number" id="fontSize" value="12" min="8" max="72">
+                    </div>
+                    <div class="property">
+                        <label>Độ dày nét:</label>
+                        <input type="number" id="strokeWidth" value="2" min="1" max="10">
+                    </div>
+                    <div class="property">
+                        <label>Độ mờ:</label>
+                        <input type="range" id="opacity" value="100" min="0" max="100">
+                        <span id="opacityValue">100%</span>
+                    </div>
+                </div>
 
-      <div class="buttons">
-        <button id="connectBtn">CONNECT ZT410</button>
-        <button id="printBtn" disabled>PRINT TEST</button>
-        <button id="disconnectBtn" disabled>DISCONNECT</button>
-      </div>
-    </section>
+                <div class="tool-section">
+                    <h3>Hành động</h3>
+                    <button class="tool-btn" id="btnClear"><i class="fas fa-trash"></i> Xóa tất cả</button>
+                    <button class="tool-btn" id="btnDelete"><i class="fas fa-times"></i> Xóa chọn</button>
+                    <button class="tool-btn" id="btnDuplicate"><i class="fas fa-copy"></i> Sao chép</button>
+                    <button class="tool-btn" id="btnBringForward"><i class="fas fa-arrow-up"></i> Lên trước</button>
+                    <button class="tool-btn" id="btnSendBackward"><i class="fas fa-arrow-down"></i> Lùi sau</button>
+                </div>
 
-    <section class="device-info">
-      <h2>Selected device</h2>
-      <pre id="selectedDevice">None</pre>
+                <div class="tool-section">
+                    <h3>Xem trước</h3>
+                    <div id="preview" class="preview"></div>
+                </div>
+            </aside>
 
-      <h2>USB / Bluetooth Serial info</h2>
-      <pre id="portInfo">None</pre>
-    </section>
+            <!-- Canvas Area -->
+            <div class="canvas-wrapper">
+                <div class="canvas-container">
+                    <!-- Lưới nhãn 2 cột -->
+                    <div id="labelGrid" class="label-grid">
+                        <!-- Label 1 -->
+                        <div class="label-item">
+                            <canvas id="canvas1" class="label-canvas" width="226" height="141"></canvas>
+                        </div>
+                        <!-- Label 2 -->
+                        <div class="label-item">
+                            <canvas id="canvas2" class="label-canvas" width="226" height="141"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="canvas-info">
+                    <p>Kích thước: <strong>40mm × 25mm</strong> | Độ phân giải: <strong>226×141 pixels</strong> (8.5pt/mm)</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <section class="logs">
-      <h2>Logs (console)</h2>
-      <pre id="logWindow"></pre>
-    </section>
-  </main>
+    <!-- Hidden file inputs -->
+    <input type="file" id="imageInput" accept="image/*" style="display:none">
+    <input type="file" id="loadFile" accept=".json" style="display:none">
 
-  <script src="app.js"></script>
+    <!-- Modals -->
+    <div id="qrModal" class="modal" style="display:none">
+        <div class="modal-content">
+            <span class="modal-close" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <h2>Thêm QR Code</h2>
+            <input type="text" id="qrInput" placeholder="Nhập dữ liệu QR Code" style="width:100%; padding:10px; margin:10px 0;">
+            <button class="btn btn-success" onclick="addQRCode()">Thêm QR Code</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode.js/1.5.3/qrcode.min.js"></script>
+    <script src="js/canvas.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
