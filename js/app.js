@@ -1,8 +1,22 @@
-// Application Main Logic
+// Application Main Logic with Bluetooth Printer
 const canvas1 = new CanvasManager('canvas1');
 const canvas2 = new CanvasManager('canvas2');
 let currentCanvas = canvas1;
 let currentTool = 'select';
+let printer = null;
+
+// Initialize Printer
+function initPrinter() {
+    if (ZT410BluetoothPrinter.isBluetoothSupported()) {
+        printer = new ZT410BluetoothPrinter();
+        console.log('✅ Bluetooth hỗ trợ sẵn sàng');
+        updateConnectionStatus(false);
+    } else {
+        alert('⚠️ Trình duyệt của bạn không hỗ trợ Bluetooth. Vui lòng sử dụng Chrome, Edge hoặc Firefox.');
+        document.getElementById('btnPrinterConnect').disabled = true;
+        document.getElementById('btnBluetoothPrint').disabled = true;
+    }
+}
 
 // Tool Selection
 document.getElementById('toolSelect').addEventListener('click', () => selectTool('select'));
@@ -144,8 +158,72 @@ document.getElementById('loadFile').addEventListener('change', (e) => {
     }
 });
 
-// Print Labels
-document.getElementById('btnPrint').addEventListener('click', () => {
+// Bluetooth Printer Controls
+document.getElementById('btnPrinterConnect').addEventListener('click', async () => {
+    if (!printer) {
+        alert('Bluetooth chưa được khởi tạo');
+        return;
+    }
+
+    const btn = event.target.closest('button');
+    const isConnected = printer.isConnected;
+
+    try {
+        if (isConnected) {
+            // Disconnect
+            await printer.disconnect();
+            updateConnectionStatus(false);
+            btn.innerHTML = '<i class="fas fa-bluetooth"></i> Kết nối máy in';
+            alert('Ngắt kết nối thành công');
+        } else {
+            // Connect
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kết nối...';
+            
+            const result = await printer.connect();
+            updateConnectionStatus(true);
+            document.getElementById('printerNameValue').textContent = result.device;
+            document.getElementById('printerName').style.display = 'block';
+            btn.innerHTML = '<i class="fas fa-bluetooth"></i> Ngắt kết nối';
+            
+            alert('✅ ' + result.message);
+        }
+    } catch (error) {
+        alert('❌ ' + error.message);
+        btn.innerHTML = '<i class="fas fa-bluetooth"></i> Kết nối máy in';
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+// Bluetooth Print
+document.getElementById('btnBluetoothPrint').addEventListener('click', async () => {
+    if (!printer || !printer.isConnected) {
+        alert('Vui lòng kết nối máy in trước');
+        return;
+    }
+
+    const copies = parseInt(document.getElementById('printCopies').value) || 1;
+    
+    try {
+        showPrintProgress(true);
+        
+        const result = await printer.printBothLabels(
+            document.getElementById('canvas1'),
+            document.getElementById('canvas2'),
+            copies
+        );
+        
+        showPrintProgress(false);
+        alert('✅ ' + result.message);
+    } catch (error) {
+        showPrintProgress(false);
+        alert('❌ Lỗi in: ' + error.message);
+    }
+});
+
+// Web Print
+document.getElementById('btnWebPrint').addEventListener('click', () => {
     const printWindow = window.open('', '', 'height=600,width=800');
     const label1Img = document.getElementById('canvas1').toDataURL();
     const label2Img = document.getElementById('canvas2').toDataURL();
@@ -182,6 +260,32 @@ document.getElementById('btnPrint').addEventListener('click', () => {
     setTimeout(() => printWindow.print(), 250);
 });
 
+// Printer Info
+document.getElementById('btnPrinterInfo').addEventListener('click', async () => {
+    const modal = document.getElementById('printerInfoModal');
+    const detailsDiv = document.getElementById('printerDetails');
+    modal.style.display = 'block';
+    
+    if (!printer) {
+        detailsDiv.innerHTML = '<p>❌ Bluetooth chưa được khởi tạo</p>';
+        return;
+    }
+
+    try {
+        const info = await printer.getPrinterInfo();
+        
+        let html = '<ul style="list-style:none; padding:0;">';
+        for (const [key, value] of Object.entries(info)) {
+            html += `<li style="padding:8px 0; border-bottom:1px solid #ddd;"><strong>${key}:</strong> ${value}</li>`;
+        }
+        html += '</ul>';
+        
+        detailsDiv.innerHTML = html;
+    } catch (error) {
+        detailsDiv.innerHTML = `<p>⚠️ Lỗi: ${error.message}</p>`;
+    }
+});
+
 // QR Code Modal Handler
 function addQRCode() {
     const qrInput = document.getElementById('qrInput');
@@ -193,6 +297,46 @@ function addQRCode() {
         document.getElementById('qrModal').style.display = 'none';
     } else {
         alert('Vui lòng nhập dữ liệu QR Code');
+    }
+}
+
+// Update Connection Status
+function updateConnectionStatus(connected) {
+    const statusEl = document.getElementById('connectionStatus');
+    const statusText = document.getElementById('statusText');
+    const printBtn = document.getElementById('btnBluetoothPrint');
+    
+    if (connected) {
+        statusEl.classList.add('connected');
+        statusText.textContent = '✅ Đã kết nối máy in';
+        document.getElementById('printerStatus').textContent = '✅ Sẵn sàng';
+        printBtn.disabled = false;
+    } else {
+        statusEl.classList.remove('connected');
+        statusText.textContent = '⚠️ Chưa kết nối';
+        document.getElementById('printerStatus').textContent = '❌ Chưa kết nối';
+        printBtn.disabled = true;
+    }
+}
+
+// Show/Hide Print Progress
+function showPrintProgress(show) {
+    const modal = document.getElementById('printProgressModal');
+    if (show) {
+        modal.style.display = 'block';
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 30;
+            if (progress > 90) progress = 90;
+            document.getElementById('progressFill').style.width = progress + '%';
+            if (progress >= 90) clearInterval(interval);
+        }, 300);
+    } else {
+        document.getElementById('progressFill').style.width = '100%';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }, 500);
     }
 }
 
@@ -212,4 +356,5 @@ document.addEventListener('keydown', (e) => {
 // Initialize
 window.addEventListener('load', () => {
     document.getElementById('canvas1').parentElement.classList.add('selected');
+    initPrinter();
 });

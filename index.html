@@ -16,8 +16,13 @@
                 <div class="header-actions">
                     <button class="btn btn-success" id="btnSave"><i class="fas fa-save"></i> Lưu</button>
                     <button class="btn btn-info" id="btnLoad"><i class="fas fa-folder-open"></i> Tải</button>
-                    <button class="btn btn-warning" id="btnPrint"><i class="fas fa-print"></i> In</button>
+                    <button class="btn btn-primary" id="btnPrinterConnect"><i class="fas fa-bluetooth"></i> Kết nối máy in</button>
+                    <button class="btn btn-warning" id="btnBluetoothPrint" disabled><i class="fas fa-print"></i> In Bluetooth</button>
+                    <button class="btn btn-secondary" id="btnWebPrint"><i class="fas fa-browser"></i> In Web</button>
                 </div>
+            </div>
+            <div class="connection-status" id="connectionStatus">
+                <i class="fas fa-circle-notch"></i> <span id="statusText">Chưa kết nối</span>
             </div>
         </header>
 
@@ -74,6 +79,19 @@
                 </div>
 
                 <div class="tool-section">
+                    <h3>Máy in Bluetooth</h3>
+                    <div class="printer-info" id="printerInfo">
+                        <p><strong>Trạng thái:</strong> <span id="printerStatus">Chưa kết nối</span></p>
+                        <p id="printerName" style="display:none"><strong>Máy in:</strong> <span id="printerNameValue"></span></p>
+                    </div>
+                    <div class="property">
+                        <label>Số bản in:</label>
+                        <input type="number" id="printCopies" value="1" min="1" max="99">
+                    </div>
+                    <button class="tool-btn" id="btnPrinterInfo"><i class="fas fa-info-circle"></i> Thông tin máy in</button>
+                </div>
+
+                <div class="tool-section">
                     <h3>Xem trước</h3>
                     <div id="preview" class="preview"></div>
                 </div>
@@ -115,8 +133,34 @@
         </div>
     </div>
 
+    <!-- Printer Info Modal -->
+    <div id="printerInfoModal" class="modal" style="display:none">
+        <div class="modal-content">
+            <span class="modal-close" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <h2>Thông tin máy in ZT410</h2>
+            <div id="printerDetails" style="background:#f5f5f5; padding:15px; border-radius:8px; max-height:400px; overflow-y:auto;">
+                <p><i class="fas fa-spinner fa-spin"></i> Đang lấy thông tin...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Progress Modal -->
+    <div id="printProgressModal" class="modal" style="display:none">
+        <div class="modal-content" style="text-align:center;">
+            <h2>Đang in nhãn...</h2>
+            <div style="margin:20px 0;">
+                <i class="fas fa-spinner fa-spin" style="font-size:48px; color:#667eea;"></i>
+            </div>
+            <p id="progressText">Vui lòng chờ...</p>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode.js/1.5.3/qrcode.min.js"></script>
     <script src="js/canvas.js"></script>
+    <script src="js/printer.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
