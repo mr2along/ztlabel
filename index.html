@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ZT410 Bluetooth Test</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>ZT410 Bluetooth Test</h1>
+
+    <section class="info">
+      <div><strong>Printer:</strong> Zebra ZT410</div>
+      <div><strong>MAC:</strong> AC:3F:A4:AB:02:4C</div>
+      <div><strong>Status:</strong> <span id="status">Disconnected</span></div>
+    </section>
+
+    <section class="controls">
+      <label for="baud">Baud rate</label>
+      <select id="baud" aria-label="baud rate">
+        <option value="9600">9600</option>
+        <option value="19200">19200</option>
+        <option value="38400">38400</option>
+        <option value="57600">57600</option>
+        <option value="115200" selected>115200</option>
+      </select>
+
+      <div class="buttons">
+        <button id="connectBtn">CONNECT ZT410</button>
+        <button id="printBtn" disabled>PRINT TEST</button>
+        <button id="disconnectBtn" disabled>DISCONNECT</button>
+      </div>
+    </section>
+
+    <section class="device-info">
+      <h2>Selected device</h2>
+      <pre id="selectedDevice">None</pre>
+
+      <h2>USB / Bluetooth Serial info</h2>
+      <pre id="portInfo">None</pre>
+    </section>
+
+    <section class="logs">
+      <h2>Logs (console)</h2>
+      <pre id="logWindow"></pre>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
