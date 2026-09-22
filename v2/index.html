@@ -715,12 +715,18 @@ function imageToZpl(o,dpi){
       const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=true;
       ctx.fillStyle='#fff';ctx.fillRect(0,0,targetW,targetH);
       const mode=o.fitMode||'fill';
-      if(mode==='fill')ctx.drawImage(img,0,0,targetW,targetH);
+      ctx.save();
+      ctx.translate(targetW/2,targetH/2);
+      ctx.rotate((Number(o.rotation||0)*Math.PI)/180);
+      const rw=Math.abs(Math.cos((Number(o.rotation||0)*Math.PI)/180))*targetW+Math.abs(Math.sin((Number(o.rotation||0)*Math.PI)/180))*targetH;
+      const rh=Math.abs(Math.sin((Number(o.rotation||0)*Math.PI)/180))*targetW+Math.abs(Math.cos((Number(o.rotation||0)*Math.PI)/180))*targetH;
+      if(mode==='fill')ctx.drawImage(img,-targetW/2,-targetH/2,targetW,targetH);
       else{
-        const scale=mode==='crop'?Math.max(targetW/iw,targetH/ih):Math.min(targetW/iw,targetH/ih);
-        const dw=iw*scale,dh=ih*scale,dx=(targetW-dw)/2,dy=(targetH-dh)/2;
+        const scale=mode==='crop'?Math.max(rw/iw,rh/ih):Math.min(rw/iw,rh/ih);
+        const dw=iw*scale,dh=ih*scale,dx=-dw/2,dy=-dh/2;
         ctx.drawImage(img,dx,dy,dw,dh);
       }
+      ctx.restore();
       const px=ctx.getImageData(0,0,targetW,targetH).data,bytesPerRow=Math.ceil(targetW/8),arr=new Uint8Array(bytesPerRow*targetH);
       for(let y=0;y<targetH;y++)for(let x=0;x<targetW;x++){
         const i=(y*targetW+x)*4,gray=.299*px[i]+.587*px[i+1]+.114*px[i+2];
@@ -978,7 +984,7 @@ function serialEventHandlers(){
 async function tryAutoReconnect(){
   if(!state.autoReconnect||port||!('serial' in navigator)||!window.isSecureContext)return;
   try{
-    const ports=await navigator.serial.getPorts();if(!ports.length)return;
+    const ports=await navigator.serial.getPorts();if(ports.length!==1)return;
     const p=ports[0];await p.open({baudRate:Number($('baud').value)||115200});
     port=p;updateConnectionUI('Auto connected');showToast('Đã tự kết nối cổng đã cấp quyền');
   }catch(e){console.debug('auto reconnect skipped',e);}
