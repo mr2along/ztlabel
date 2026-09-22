@@ -1,29 +1,63 @@
 # ZT Label Designer V2
 
-Mobile-first web designer for Zebra ZT410.
+Web label designer for Zebra ZT410, kept under `/v2/` so the existing root application remains untouched.
 
-## Target
-- Zebra ZT410
-- Bluetooth Classic
-- ZPL
-- 40 × 25 mm
-- 203 DPI
+## Core scope
 
-## Features
-Text, Code128, QR ZPL, Line, Box, touch/mouse drag, property editing, duplicate/delete, LocalStorage templates, ZPL generation, clipboard, Web Serial printer connection.
+- 40 × 25 mm default label
+- 203 / 300 DPI with ZT410 dot-density mapping (8 / 12 dots per mm)
+- Text, Code128, QR, Line, Box
+- Mouse/touch drag
+- X / Y / W / H property editing
+- Duplicate / Delete / Clear
+- Undo / Redo
+- Keyboard nudging
+- LocalStorage current template
+- Save / Load named templates
+- JSON import / export
+- ZPL preview and clipboard copy
+- Web Serial connect / disconnect / print
+- Print copies
+- UTF-8 ZPL with `^CI28`
 
-## Bluetooth
-Uses `navigator.serial`, not Web Bluetooth. Chrome Android/desktop support depends on browser/device and the printer's exposed serial profile.
+## Browser / transport
 
-Printer:
-- Model: ZT410
-- Bluetooth MAC: AC:3F:A4:AB:02:4C
-- Firmware: V75.20.14Z
-- Language: XML and ZPL
-- Controller Mode: Classic
+The printer path is:
 
-## Run
-Serve over localhost/HTTPS. Web Serial requires a secure context (localhost is treated as secure). Open the page in Chrome and click Connect; permission is requested only from that user action.
+`Chrome → Web Serial → serial profile / Bluetooth RFCOMM → ZT410`
 
-## Next
-QR pixel preview, image to ZPL (^GFA), variable fields, serial/date/lot, printer status, reconnect, and production templates.
+Web Serial is only usable from a secure context such as HTTPS or localhost. The Connect button requests the serial port so the browser keeps the permission flow user initiated.
+
+## ZT410 print mapping
+
+| DPI | dots/mm | 40 × 25 mm |
+|---|---:|---:|
+| 203 | 8 | 320 × 200 dots |
+| 300 | 12 | 480 × 300 dots |
+
+## Run locally
+
+Serve the repository over localhost, for example with any static HTTP server, then open:
+
+`http://localhost:<port>/v2/`
+
+Do not use the GitHub `blob` page as the runtime.
+
+## Hardware print validation
+
+Before production printing, validate at the target printer:
+
+1. Text positioning and clipping
+2. Code128 readability
+3. QR readability
+4. UTF-8 / Vietnamese text
+5. 203 DPI
+6. 300 DPI
+7. Multiple copies
+8. Bluetooth disconnect / reconnect
+
+The UI status means the ZPL write completed; it does not by itself prove that media advanced or the label was physically printed.
+
+## Security / privacy
+
+No printer MAC address or other device identifier is stored in the web UI. No server-side backend is required for the designer itself.
