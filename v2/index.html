@@ -30,9 +30,27 @@ header small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .pill.ok{background:#113c2c;color:#98f1ca}.pill.bad{background:#421b20;color:#ffb4bb}
 .work{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:9px;padding:0 9px}
 .stage{min-height:520px;background:#151b23;border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:22px}
+.canvas-wrap{position:relative;flex:none}
 .label{position:relative;background:#fff;box-shadow:0 10px 35px #0009;flex:none;touch-action:none}
-.obj{position:absolute;color:var(--ink);user-select:none;overflow:hidden;touch-action:none}
+.label.show-grid{background-image:linear-gradient(to right,rgba(0,0,0,.09) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,.09) 1px,transparent 1px);background-size:var(--grid-step,8px) var(--grid-step,8px)}
+.obj{position:absolute;color:var(--ink);user-select:none;overflow:visible;touch-action:none;transform-origin:center center}
 .obj.selected{outline:2px solid var(--primary);outline-offset:1px;z-index:10}
+.resize-handle{position:absolute;width:8px;height:8px;border:1px solid #fff;background:var(--primary);border-radius:2px;z-index:20}
+.resize-handle.nw{left:-5px;top:-5px;cursor:nwse-resize}.resize-handle.n{left:50%;top:-5px;transform:translateX(-50%);cursor:ns-resize}.resize-handle.ne{right:-5px;top:-5px;cursor:nesw-resize}
+.resize-handle.e{right:-5px;top:50%;transform:translateY(-50%);cursor:ew-resize}.resize-handle.se{right:-5px;bottom:-5px;cursor:nwse-resize}.resize-handle.s{left:50%;bottom:-5px;transform:translateX(-50%);cursor:ns-resize}
+.resize-handle.sw{left:-5px;bottom:-5px;cursor:nesw-resize}.resize-handle.w{left:-5px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+.ruler-top{position:absolute;left:20px;top:0;height:18px;overflow:hidden;border-bottom:1px solid #9aa5b1;background:repeating-linear-gradient(to right,#aeb8c4 0 1px,transparent 1px var(--ruler-step,40px));color:#687381;font-size:9px}
+.ruler-left{position:absolute;left:0;top:20px;width:18px;overflow:hidden;border-right:1px solid #9aa5b1;background:repeating-linear-gradient(to bottom,#aeb8c4 0 1px,transparent 1px var(--ruler-step,40px));color:#687381;font-size:9px}
+.ruler-label{position:absolute;pointer-events:none;white-space:nowrap}
+.layers{margin-top:10px;border-top:1px solid var(--border);padding-top:8px}
+.layers h4{margin:0 0 6px;font-size:12px}
+.layer-item{display:flex;align-items:center;gap:6px;width:100%;padding:6px 7px;border:1px solid #2e3947;background:#10161e;border-radius:7px;margin-top:5px;text-align:left}
+.layer-item.active{border-color:var(--primary);background:#16243b}
+.layer-item .layer-num{color:var(--muted);font-size:10px;width:18px}.layer-item .layer-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.modal.large{inset:3%}
+.modal textarea.tall{min-height:320px}
+.statline{font-size:11px;color:var(--muted)}
+.history-row{display:grid;grid-template-columns:1.2fr .7fr .8fr;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px}
 .obj.text{white-space:pre-wrap;line-height:1.1;word-break:break-word}
 .obj.box{border:2px solid var(--ink)}
 .obj.line{background:var(--ink)}
@@ -95,6 +113,22 @@ background-size:8px 8px;background-position:0 0,4px 4px}
   <button id="btnDuplicate">⧉ Duplicate</button>
   <button id="btnDelete">Delete</button>
   <button id="btnClear">Clear</button>
+  <button id="btnAlignLeft">Align L</button>
+  <button id="btnAlignCenter">Align C</button>
+  <button id="btnAlignRight">Align R</button>
+  <button id="btnAlignTop">Align T</button>
+  <button id="btnAlignMiddle">Align M</button>
+  <button id="btnAlignBottom">Align B</button>
+  <button id="btnFront">To Front</button>
+  <button id="btnUp">Bring ↑</button>
+  <button id="btnDown">Send ↓</button>
+  <button id="btnBack">To Back</button>
+  <button id="btnGrid">Grid</button>
+  <button id="btnSnap">Snap</button>
+  <button id="btnRulers">Rulers</button>
+  <button id="btnStatus">Printer Status</button>
+  <button id="btnHistory">Print History</button>
+  <button id="btnBatch">Batch Print</button>
   <button id="btnConnect" class="primary">🔵 Connect</button>
   <button id="btnDisconnect">Disconnect</button>
   <span class="status"><span id="support" class="pill"></span><span id="status" class="pill">Disconnected</span></span>
@@ -120,6 +154,10 @@ background-size:8px 8px;background-position:0 0,4px 4px}
       <select id="baud"><option>115200</option><option>57600</option><option>38400</option><option>19200</option><option>9600</option></select>
     </label>
     <label>Copies <input id="copies" type="number" min="1" max="99" step="1" value="1"></label>
+    <label>Serial <input id="serialStart" type="text" value="000001" maxlength="24"></label>
+    <label>Step <input id="serialStep" type="number" value="1" step="1"></label>
+    <label>Variables <input id="varsJSON" class="vars" type="text" value="{}" placeholder='{"name":"ABC"}'></label>
+    <label><input id="autoReconnect" type="checkbox" checked> Auto reconnect</label>
     <button id="btnLoad">Load</button>
     <button id="btnSave">Save As</button>
     <button id="btnExport">Export JSON</button>
@@ -129,11 +167,12 @@ background-size:8px 8px;background-position:0 0,4px 4px}
 </div>
 
 <div class="work">
-  <div class="stage" id="stage"><div id="label" class="label"></div></div>
+  <div class="stage" id="stage"><div id="canvasWrap" class="canvas-wrap"><div id="rulerTop" class="ruler-top"></div><div id="rulerLeft" class="ruler-left"></div><div id="label" class="label"></div></div></div>
   <aside class="props">
     <h3>Thuộc tính</h3>
     <div id="propsBody">Chọn một đối tượng.</div>
-    <div class="help">Đơn vị X/Y/W/H là mm. Kéo bằng chuột hoặc cảm ứng. Mũi tên để dịch chuyển 0,1 mm; Shift + mũi tên = 1 mm.</div>
+    <div class="help">Đơn vị X/Y/W/H là mm. Kéo bằng chuột hoặc cảm ứng. Có 8 tay nắm đổi kích thước. Mũi tên = 0,1 mm; Shift + mũi tên = 1 mm.</div>
+    <div id="layersPanel" class="layers"></div>
   </aside>
 </div>
 
@@ -149,6 +188,25 @@ background-size:8px 8px;background-position:0 0,4px 4px}
   <div class="row"><button id="btnCloseZpl">Close</button></div>
 </div>
 
+<div id="batchModal" class="modal large" hidden>
+  <b>Batch Print · CSV / TSV</b>
+  <div class="statline">Dòng đầu là header. Mỗi cột dùng được trong template bằng <code>{{tên_cột}}</code>. Có thể dùng <code>{{serial}}</code>, <code>{{date}}</code>, <code>{{time}}</code>.</div>
+  <textarea id="batchInput" class="tall" spellcheck="false" placeholder="name,serial,code&#10;ABC,000101,123456789&#10;DEF,000102,987654321"></textarea>
+  <div class="row"><button id="btnCloseBatch">Close</button><button id="btnRunBatch" class="primary">Print Batch</button></div>
+</div>
+
+<div id="historyModal" class="modal large" hidden>
+  <b>Print History</b>
+  <div id="historyBody"></div>
+  <div class="row"><button id="btnCloseHistory">Close</button><button id="btnClearHistory">Clear History</button></div>
+</div>
+
+<div id="statusModal" class="modal large" hidden>
+  <b>Printer Status · Best effort</b>
+  <textarea id="statusOutput" class="tall" spellcheck="false"></textarea>
+  <div class="row"><button id="btnCloseStatus">Close</button></div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -157,6 +215,8 @@ background-size:8px 8px;background-position:0 0,4px 4px}
 const $ = (id) => document.getElementById(id);
 const STORE_CURRENT = 'ztlabel:v2:current';
 const STORE_PREFIX = 'ztlabel:v2:template:';
+const STORE_HISTORY = 'ztlabel:v2:history';
+const STORE_VIEW = 'ztlabel:v2:view';
 const DOTS_PER_MM = {203: 8, 300: 12};
 
 const DEFAULTS = {
@@ -165,10 +225,11 @@ const DEFAULTS = {
   qr:      {type:'qr',      x:30, y:11, w:8,  h:8,  data:'ABC123', magnification:4},
   line:    {type:'line',    x:4,  y:21, w:32, h:.5, thickness:.5},
   box:     {type:'box',     x:3,  y:2,  w:34, h:21, thickness:.5},
-  image:   {type:'image',   x:5,  y:5,  w:20, h:15, dataUrl:'', sourceW:100, sourceH:100, threshold:160}
+  image:   {type:'image',   x:5,  y:5,  w:20, h:15, dataUrl:'', sourceW:100, sourceH:100, threshold:160, rotation:0}
 };
 
-const state = {label:{widthMm:40,heightMm:25,dpi:203,objects:[]}, selectedId:null};
+const state = {label:{widthMm:40,heightMm:25,dpi:203,objects:[],variables:{},serialStart:'000001',serialStep:1}, selectedId:null, view:{grid:false,snap:false,rulers:false}};
+let port = null;
 let port = null;
 let writer = null;
 let drag = null;
@@ -184,6 +245,15 @@ function mm(v,min=0,max=300){ return Math.max(min,Math.min(max,Number.isFinite(+
 function cleanData(v){ return String(v ?? '').replace(/[\^~]/g,' ').replace(/[\r\n]+/g,' '); }
 
 function snapshot(){ return JSON.stringify({label:state.label,selectedId:state.selectedId}); }
+function getVars(){ return state.label.variables && typeof state.label.variables==='object' ? state.label.variables : (state.label.variables={}); }
+function serialWidth(s){ return /^\d+$/.test(String(s)) ? String(s).length : 0; }
+function serialValue(start,step){ const raw=String(start??'000001'); const n=Number.parseInt(raw,10); if(!Number.isFinite(n)) return raw; const w=serialWidth(raw); const out=String(n+Number(step||0)); return w ? out.padStart(w,'0') : out; }
+function resolveText(value,overrides={}){
+  const source=String(value??''); const vars={...getVars(),...overrides}; const now=new Date();
+  vars.date = vars.date ?? now.toLocaleDateString('vi-VN'); vars.time = vars.time ?? now.toLocaleTimeString('vi-VN',{hour12:false});
+  vars.datetime = vars.datetime ?? (vars.date+' '+vars.time); vars.serial = vars.serial ?? state.label.serialStart;
+  return source.replace(/{{\s*([A-Za-z0-9_.-]+)\s*}}/g,(_,k)=>String(vars[k]??''));
+}
 function restoreSnapshot(s){
   const x=JSON.parse(s);
   state.label=x.label;
@@ -230,6 +300,7 @@ function normalizeObject(o){
   if(type==='qr'){x.data=String(x.data??'');x.magnification=Math.max(1,Math.min(10,Math.round(+x.magnification||4)));}
   if(type==='line'||type==='box') x.thickness=Math.max(.1,Math.min(5,+x.thickness||.5));
   if(type==='image'){x.dataUrl=String(x.dataUrl||'');x.sourceW=Math.max(1,Math.round(+x.sourceW||100));x.sourceH=Math.max(1,Math.round(+x.sourceH||100));x.threshold=Math.max(0,Math.min(255,Math.round(+x.threshold||160)));}
+  x.rotation=[0,90,180,270].includes(Number(x.rotation))?Number(x.rotation):0;
   return x;
 }
 
@@ -239,7 +310,7 @@ function normalizeLabel(raw){
   const heightMm=mm(l?.heightMm,1,300);
   const dpi=Number(l?.dpi)===300?300:203;
   const objects=Array.isArray(l?.objects)?l.objects.map(normalizeObject):[];
-  return {widthMm,heightMm,dpi,objects};
+  return {widthMm,heightMm,dpi,objects,variables:(l?.variables&&typeof l.variables==='object'&&!Array.isArray(l.variables))?l.variables:{},serialStart:String(l?.serialStart??'000001'),serialStep:Number.isFinite(+l?.serialStep)?+l.serialStep:1};
 }
 
 function setNewLabel(){
@@ -250,7 +321,9 @@ function setNewLabel(){
   render();
 }
 
-function saveCurrent(){ localStorage.setItem(STORE_CURRENT,JSON.stringify(state.label)); }
+function saveCurrent(){try{localStorage.setItem(STORE_CURRENT,JSON.stringify(state.label));}catch(e){console.warn('saveCurrent failed',e);showToast('Không đủ LocalStorage cho template này. Export JSON để lưu.');}}
+function loadView(){try{const v=JSON.parse(localStorage.getItem(STORE_VIEW)||'null');if(v)state.view={...state.view,...v};}catch{}}
+function saveView(){try{localStorage.setItem(STORE_VIEW,JSON.stringify(state.view));}catch{}}
 
 function loadCurrent(){
   try{
