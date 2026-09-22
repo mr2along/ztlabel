@@ -17,7 +17,7 @@ Web label designer for Zebra ZT410, kept under `/v2/` so the existing root appli
 - Save / Load named templates
 - JSON import / export
 - ZPL preview and clipboard copy
-- Image insertion from PNG/JPEG/WebP/BMP with monochrome threshold and size mapping to ZPL
+- Image insertion from PNG/JPEG/WebP/BMP with monochrome threshold, Fill / Fit / Crop modes, and size mapping to ZPL
 - Web Serial connect / disconnect / print
 - Print copies with automatic serial-number advancement
 - 8-handle object resize
