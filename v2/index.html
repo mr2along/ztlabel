@@ -167,7 +167,7 @@ let future = [];
 let propBefore = null;
 let toastTimer = null;
 
-function uid(){ return crypto?.randomUUID?.() || ('o-'+Date.now()+'-'+Math.random().toString(36).slice(2)); }
+function uid(){ return globalThis.crypto?.randomUUID?.() || ('o-'+Date.now()+'-'+Math.random().toString(36).slice(2)); }
 function clone(v){ return JSON.parse(JSON.stringify(v)); }
 function dots(mm,dpi=state.label.dpi){ return Math.round(Number(mm||0) * (DOTS_PER_MM[dpi] || 8)); }
 function mm(v,min=0,max=200){ return Math.max(min,Math.min(max,Number.isFinite(+v)?+v:min)); }
@@ -359,12 +359,12 @@ function field(parent,labelText,value,type,step,onInput,onChange,wide=false){
   const lab=document.createElement('label'); lab.textContent=labelText;
   const input=document.createElement('input'); input.type=type; input.step=step||'any'; input.value=value;
   input.addEventListener('focus',()=>{if(propBefore===null)propBefore=snapshot();});
-  input.addEventListener('input',()=>onInput(input));
+  input.addEventListener('input',()=>{onInput(input);updateSelectedView();});
   input.addEventListener('change',()=>{if(propBefore!==null){history.push(propBefore);if(history.length>80)history.shift();future=[];propBefore=null;}saveCurrent();render();});
   wrap.append(lab,input); parent.append(wrap); return input;
 }
 
-function renderProps(){
+function updateSelectedView(){\n  const o=selected(); if(!o) return;\n  const el=$('label').querySelector('.obj.selected'); if(!el) return;\n  const s=labelScale();\n  styleObject(el,o,s);\n  if(o.type==='text') el.textContent=o.text;\n  else if(o.type==='barcode') drawBarcode(el,o);\n  else if(o.type==='qr') el.textContent='QR\\\\n'+o.data;\n}\n\nfunction renderProps(){
   const body=$('propsBody'); body.replaceChildren();
   const o=selected();
   if(!o){body.textContent='Chọn một đối tượng.';return;}
