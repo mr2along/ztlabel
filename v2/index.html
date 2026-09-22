@@ -211,6 +211,8 @@ function normalizeObject(o){
   x.y=mm(x.y,0,state.label.heightMm);
   x.w=mm(x.w,0,state.label.widthMm);
   x.h=mm(x.h,0,state.label.heightMm);
+  x.w=Math.min(x.w,state.label.widthMm);
+  x.h=Math.min(x.h,state.label.heightMm);
   x.x=Math.min(x.x,Math.max(0,state.label.widthMm-x.w));
   x.y=Math.min(x.y,Math.max(0,state.label.heightMm-x.h));
   if(type==='text'){x.text=String(x.text??'');x.fontSize=Math.max(1,Math.min(30,+x.fontSize||4));}
