@@ -541,7 +541,13 @@ function renderProps(){
   const actions=document.createElement('div');actions.className='actions';
   const dup=document.createElement('button');dup.textContent='Duplicate';dup.onclick=()=>duplicateSelected();
   const del=document.createElement('button');del.textContent='Delete';del.className='danger';del.onclick=()=>deleteSelected();
-  actions.append(dup,del);body.appendChild(actions);
+  const rotL=document.createElement('button');rotL.textContent='↺ 90°';rotL.onclick=()=>rotateSelected(-90);
+  const rotR=document.createElement('button');rotR.textContent='↻ 90°';rotR.onclick=()=>rotateSelected(90);
+  actions.append(dup,del,rotL,rotR);body.appendChild(actions);
+  if(o.type==='image'){
+    const fit=document.createElement('button');fit.textContent='Fit aspect ratio';fit.onclick=fitImage;
+    fit.style.marginTop='7px';fit.style.width='100%';body.appendChild(fit);
+  }
 }
 
 function add(type){
@@ -573,6 +579,59 @@ function clearAll(){
   if(!state.label.objects.length)return;
   if(!confirm('Xóa tất cả đối tượng trên nhãn?'))return;
   checkpoint();state.label.objects=[];state.selectedId=null;saveCurrent();render();
+}
+function rotateSelected(delta){
+  const o=selected();if(!o)return;
+  checkpoint();o.rotation=((Number(o.rotation||0)+delta)%360+360)%360;saveCurrent();render();
+}
+function fitImage(){
+  const o=selected();if(!o||o.type!=='image'||!o.sourceW||!o.sourceH)return;
+  checkpoint();
+  const ratio=o.sourceW/o.sourceH;
+  if(o.w/o.h>ratio)o.h=Math.min(state.label.heightMm,o.w/ratio);
+  else o.w=Math.min(state.label.widthMm,o.h*ratio);
+  o.x=Math.min(o.x,Math.max(0,state.label.widthMm-o.w));
+  o.y=Math.min(o.y,Math.max(0,state.label.heightMm-o.h));
+  saveCurrent();render();
+}
+function renderLayers(){
+  const root=$('layersPanel');root.replaceChildren();
+  const h=document.createElement('h4');h.textContent='Layers / Objects';root.appendChild(h);
+  const arr=[...state.label.objects].reverse();
+  arr.forEach((o,idx)=>{
+    const b=document.createElement('button');b.className='layer-item'+(o.id===state.selectedId?' active':'');
+    const n=document.createElement('span');n.className='layer-num';n.textContent=String(arr.length-idx);
+    const name=document.createElement('span');name.className='layer-name';
+    name.textContent=(o.type==='text'?resolveText(o.text).slice(0,28):o.type)+' · '+o.id.slice(0,6);
+    b.append(n,name);b.onclick=()=>{state.selectedId=o.id;render()};root.appendChild(b);
+  });
+}
+function alignSelected(mode){
+  const o=selected();if(!o)return;
+  checkpoint();
+  if(mode==='left')o.x=0;
+  if(mode==='center')o.x=Math.max(0,(state.label.widthMm-o.w)/2);
+  if(mode==='right')o.x=Math.max(0,state.label.widthMm-o.w);
+  if(mode==='top')o.y=0;
+  if(mode==='middle')o.y=Math.max(0,(state.label.heightMm-o.h)/2);
+  if(mode==='bottom')o.y=Math.max(0,state.label.heightMm-o.h);
+  saveCurrent();render();
+}
+function moveLayer(dir){
+  const o=selected();if(!o)return;
+  const i=state.label.objects.findIndex(x=>x.id===o.id);if(i<0)return;
+  const to=dir==='front'?state.label.objects.length-1:dir==='back'?0:i+(dir==='up'?1:-1);
+  if(to<0||to>=state.label.objects.length||to===i)return;
+  checkpoint();const item=state.label.objects.splice(i,1)[0];state.label.objects.splice(to,0,item);saveCurrent();render();
+}
+function renderRulers(s){
+  const top=$('rulerTop'),left=$('rulerLeft');top.replaceChildren();left.replaceChildren();
+  top.style.width=(state.label.widthMm*s)+'px';left.style.height=(state.label.heightMm*s)+'px';
+  top.style.setProperty('--ruler-step',Math.max(8,5*s)+'px');left.style.setProperty('--ruler-step',Math.max(8,5*s)+'px');
+  if(!state.view.rulers){top.hidden=true;left.hidden=true;return;}
+  top.hidden=false;left.hidden=false;
+  for(let mmv=0;mmv<=state.label.widthMm;mmv+=10){const t=document.createElement('span');t.className='ruler-label';t.style.left=(mmv*s+2)+'px';t.textContent=mmv;top.appendChild(t);}
+  for(let mmv=0;mmv<=state.label.heightMm;mmv+=10){const t=document.createElement('span');t.className='ruler-label';t.style.top=(mmv*s+2)+'px';t.textContent=mmv;left.appendChild(t);}
 }
 
 const LABEL_PRESETS={
@@ -661,19 +720,21 @@ function imageToZpl(o,dpi){
     return {targetW:b.width,targetH:b.height,bytesPerRow:b.bytesPerRow,hex:b.hex};
   });
 }
-async function buildZpl(){
+async function buildZpl(overrides={}){
   const l=state.label,dpi=l.dpi;
   let out='^XA^CI28^PW'+dots(l.widthMm,dpi)+'^LL'+dots(l.heightMm,dpi);
   for(const o of l.objects){
     const x=dots(o.x,dpi),y=dots(o.y,dpi);
+    const fw={0:'N',90:'R',180:'I',270:'B'}[o.rotation||0]||'N';
+    out+='^FW'+fw;
     if(o.type==='text'){
       const fs=Math.max(8,dots(o.fontSize,dpi)),bw=Math.max(1,dots(o.w,dpi));
       const lines=Math.max(1,Math.floor((o.h*DOTS_PER_MM[dpi])/Math.max(1,fs)));
-      out+='^FO'+x+','+y+'^A0N,'+fs+','+fs+'^FB'+bw+','+lines+',0,L,0^FD'+cleanData(o.text)+'^FS';
+      out+='^FO'+x+','+y+'^A0'+fw+','+fs+','+fs+'^FB'+bw+','+lines+',0,L,0^FD'+cleanData(resolveText(o.text,overrides))+'^FS';
     }else if(o.type==='barcode'){
-      out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BCN,'+Math.max(8,dots(o.h,dpi))+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(o.data)+'^FS';
+      out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BC'+fw+','+Math.max(8,dots(o.h,dpi))+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(resolveText(o.data,overrides))+'^FS';
     }else if(o.type==='qr'){
-      out+='^FO'+x+','+y+'^BQN,2,'+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(o.data)+'^FS';
+      out+='^FO'+x+','+y+'^BQN,'+fw+','+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(resolveText(o.data,overrides))+'^FS';
     }else if(o.type==='image'){
       const b=await imageToZpl(o,dpi);
       const total=b.hex.length/2;
@@ -686,10 +747,62 @@ async function buildZpl(){
   }
   return out+'^XZ\n';
 }
-async function zpl(){ return buildZpl(); }
+async function zpl(overrides={}){return buildZpl(overrides);}
 
 async function showZpl(){ try{$('zplOutput').value=await zpl();$('zplModal').hidden=false;}catch(e){alert('Không tạo được ZPL: '+e.message);} }
-async function copyZpl(){ try{await navigator.clipboard.writeText(await zpl());showToast('Đã copy ZPL');}catch{await showZpl();showToast('Clipboard bị chặn; ZPL đã mở để copy thủ công.');} }
+async function copyZpl(){try{await navigator.clipboard.writeText(await zpl());showToast('Đã copy ZPL');}catch{await showZpl();showToast('Clipboard bị chặn; ZPL đã mở để copy thủ công.');}}
+function readHistory(){try{return JSON.parse(localStorage.getItem(STORE_HISTORY)||'[]')}catch{return[]}}
+function writeHistory(list){try{localStorage.setItem(STORE_HISTORY,JSON.stringify(list.slice(0,50)))}catch{}}
+function recordPrintHistory(entry){writeHistory([{timestamp:new Date().toISOString(),...entry},...readHistory()])}
+function openHistory(){
+  const body=$('historyBody');body.replaceChildren();const list=readHistory();
+  if(!list.length){body.textContent='Chưa có lịch sử in.';}
+  else list.forEach(h=>{const row=document.createElement('div');row.className='history-row';
+    const a=document.createElement('span');a.textContent=new Date(h.timestamp).toLocaleString('vi-VN');
+    const b=document.createElement('span');b.textContent=String(h.status||'sent');
+    const d=document.createElement('span');d.textContent=String(h.copies??h.rows??1)+' · '+String(h.bytes??0)+' B';
+    row.append(a,b,d);body.appendChild(row);
+  });
+  $('historyModal').hidden=false;
+}
+function parseCSV(text){
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){const ch=text[i],nx=text[i+1];
+    if(ch==='"'&&quoted&&nx==='"'){cell+='"';i++;continue}
+    if(ch==='"'){quoted=!quoted;continue}
+    if((ch===','||ch==='\t')&&!quoted){row.push(cell);cell='';continue}
+    if((ch==='\n'||ch==='\r')&&!quoted){if(ch==='\r'&&nx==='\n')i++;row.push(cell);cell='';if(row.some(v=>v!==''))rows.push(row);row=[];continue}
+    cell+=ch;
+  }
+  row.push(cell);if(row.some(v=>v!==''))rows.push(row);if(rows.length<2)return [];
+  const headers=rows[0].map(v=>String(v).trim());
+  return rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,String(r[i]??'')])));
+}
+function saveSerialAfter(start,copies){
+  let cur=String(start??state.label.serialStart),step=Number(state.label.serialStep||1);
+  for(let i=0;i<copies;i++)cur=serialValue(cur,step);
+  state.label.serialStart=cur;saveCurrent();render();
+}
+async function writeZplPayload(text){
+  if(!port||!port.writable)throw new Error('Printer chưa kết nối');
+  const payload=new TextEncoder().encode(text);writer=port.writable.getWriter();
+  try{await writer.write(payload);return payload.length}finally{try{writer.releaseLock()}catch{}writer=null;}
+}
+async function printBatch(){
+  if(!port){alert('Chưa kết nối ZT410.');return}
+  const rows=parseCSV($('batchInput').value);if(!rows.length){alert('Batch không có dữ liệu hợp lệ.');return}
+  $('btnRunBatch').disabled=true;let bytes=0;
+  try{
+    const start=String(state.label.serialStart);
+    for(let i=0;i<rows.length;i++){
+      const row={...rows[i]};if(!row.serial)row.serial=serialValue(start,Number(state.label.serialStep||1)*i);row.row=i+1;
+      bytes+=await writeZplPayload(await zpl(row));if(i<rows.length-1)await new Promise(r=>setTimeout(r,30));
+      updateConnectionUI('Batch '+(i+1)+'/'+rows.length);
+    }
+    recordPrintHistory({status:'batch sent',rows:rows.length,bytes});showToast('Đã gửi batch '+rows.length+' dòng');
+  }catch(e){recordPrintHistory({status:'batch error',rows:rows.length,bytes,error:String(e?.message||e)});alert('Batch lỗi: '+(e?.message||e));}
+  finally{$('btnRunBatch').disabled=false;updateConnectionUI('Print sent');}
+}
 
 function exportJSON(){
   const blob=new Blob([JSON.stringify({version:2,label:state.label},null,2)],{type:'application/json'});
