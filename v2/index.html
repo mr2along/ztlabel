@@ -58,7 +58,7 @@ header small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .barcode .bars{display:flex;align-items:stretch;justify-content:center;gap:0;min-height:55%}
 .barcode .bars i{display:block;height:100%}
 .barcode .human{margin-top:2px;white-space:nowrap;overflow:hidden}
-.obj.image{background:#fff;display:block}.obj.image img{display:block;width:100%;height:100%;object-fit:fill;user-select:none;pointer-events:none}.obj.qr{display:grid;place-items:center;border:1px solid #111;font:9px/1 monospace;background-color:#fff;background-image:
+.obj.image{background:#fff;display:block}.obj.image img{display:block;width:100%;height:100%;object-fit:var(--object-fit,fill);user-select:none;pointer-events:none}.obj.qr{display:grid;place-items:center;border:1px solid #111;font:9px/1 monospace;background-color:#fff;background-image:
 linear-gradient(45deg,#111 25%,transparent 25%,transparent 75%,#111 75%),
 linear-gradient(45deg,#111 25%,transparent 25%,transparent 75%,#111 75%);
 background-size:8px 8px;background-position:0 0,4px 4px}
@@ -225,7 +225,7 @@ const DEFAULTS = {
   qr:      {type:'qr',      x:30, y:11, w:8,  h:8,  data:'ABC123', magnification:4},
   line:    {type:'line',    x:4,  y:21, w:32, h:.5, thickness:.5},
   box:     {type:'box',     x:3,  y:2,  w:34, h:21, thickness:.5},
-  image:   {type:'image',   x:5,  y:5,  w:20, h:15, dataUrl:'', sourceW:100, sourceH:100, threshold:160, rotation:0}
+  image:   {type:'image',   x:5,  y:5,  w:20, h:15, dataUrl:'', sourceW:100, sourceH:100, threshold:160, fitMode:'fill', rotation:0}
 };
 
 const state = {label:{widthMm:40,heightMm:25,dpi:203,objects:[],variables:{},serialStart:'000001',serialStep:1}, selectedId:null, view:{grid:false,snap:false,rulers:false}};
@@ -298,7 +298,7 @@ function normalizeObject(o){
   if(type==='barcode'){x.data=String(x.data??'');x.moduleWidth=Math.max(1,Math.min(10,Math.round(+x.moduleWidth||2)));x.humanReadable=x.humanReadable!==false;}
   if(type==='qr'){x.data=String(x.data??'');x.magnification=Math.max(1,Math.min(10,Math.round(+x.magnification||4)));}
   if(type==='line'||type==='box') x.thickness=Math.max(.1,Math.min(5,+x.thickness||.5));
-  if(type==='image'){x.dataUrl=String(x.dataUrl||'');x.sourceW=Math.max(1,Math.round(+x.sourceW||100));x.sourceH=Math.max(1,Math.round(+x.sourceH||100));x.threshold=Math.max(0,Math.min(255,Math.round(+x.threshold||160)));}
+  if(type==='image'){x.dataUrl=String(x.dataUrl||'');x.sourceW=Math.max(1,Math.round(+x.sourceW||100));x.sourceH=Math.max(1,Math.round(+x.sourceH||100));x.threshold=Math.max(0,Math.min(255,Math.round(+x.threshold||160)));x.fitMode=['fill','fit','crop'].includes(x.fitMode)?x.fitMode:'fill';}
   x.rotation=[0,90,180,270].includes(Number(x.rotation))?Number(x.rotation):0;
   return x;
 }
@@ -355,6 +355,7 @@ function styleObject(el,o,s){
   if(o.type==='text') el.style.fontSize=Math.max(6,o.fontSize*s)+'px';
   if(o.type==='line') el.style.height=Math.max(1,o.thickness*s*.45)+'px';
   if(o.type==='box') el.style.borderWidth=Math.max(1,o.thickness*s)+'px';
+  if(o.type==='image') el.style.setProperty('--object-fit',o.fitMode||'fill');
 }
 
 function drawBarcode(el,o){
@@ -532,6 +533,11 @@ function renderProps(){
   }
   if(o.type==='image'){
     field(grid,'Threshold',o.threshold,'number','1',i=>{const v=Number(i.value);o.threshold=Math.max(0,Math.min(255,Number.isFinite(v)?Math.round(v):160));},null);
+    const modeWrap=document.createElement('div');modeWrap.className='field';
+    const modeLab=document.createElement('label');modeLab.textContent='Image mode';
+    const mode=document.createElement('select');['fill','fit','crop'].forEach(v=>{const op=document.createElement('option');op.value=v;op.textContent=v==='fill'?'Fill':v==='fit'?'Fit':'Crop';mode.appendChild(op);});
+    mode.value=o.fitMode||'fill';mode.addEventListener('change',()=>{checkpoint();o.fitMode=mode.value;saveCurrent();render();});
+    modeWrap.append(modeLab,mode);grid.append(modeWrap);
   }
   if(o.type==='line'||o.type==='box'){
     field(grid,'Thickness',o.thickness,'number','.1',i=>{o.thickness=Math.max(.1,Math.min(5,+i.value||.5));},null);
@@ -695,28 +701,31 @@ function dataUrlToMono(dataUrl,threshold){
   });
 }
 function imageToZpl(o,dpi){
-  return dataUrlToMono(o.dataUrl,o.threshold).then(b=>{
+  return new Promise((resolve,reject)=>{
     const targetW=Math.max(1,dots(o.w,dpi)),targetH=Math.max(1,dots(o.h,dpi));
-    if(b.width!==targetW||b.height!==targetH){
-      // Regenerate at the actual print size so the physical output matches W/H.
-      return new Promise((resolve,reject)=>{
-        const img=new Image();
-        img.onload=()=>{
-          const cv=document.createElement('canvas');cv.width=targetW;cv.height=targetH;
-          const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=true;ctx.drawImage(img,0,0,targetW,targetH);
-          const px=ctx.getImageData(0,0,targetW,targetH).data,bytesPerRow=Math.ceil(targetW/8),arr=new Uint8Array(bytesPerRow*targetH);
-          for(let y=0;y<targetH;y++)for(let x=0;x<targetW;x++){
-            const i=(y*targetW+x)*4,gray=.299*px[i]+.587*px[i+1]+.114*px[i+2];
-            if(px[i+3]>20&&gray<o.threshold)arr[y*bytesPerRow+(x>>3)]|=0x80>>(x&7);
-          }
-          let hex='';for(const v of arr)hex+=v.toString(16).padStart(2,'0').toUpperCase();
-          resolve({targetW,targetH,bytesPerRow,hex});
-        };
-        img.onerror=()=>reject(new Error('Không chuyển đổi được hình ảnh'));
-        img.src=o.dataUrl;
-      });
-    }
-    return {targetW:b.width,targetH:b.height,bytesPerRow:b.bytesPerRow,hex:b.hex};
+    const img=new Image();
+    img.onload=()=>{
+      const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+      const cv=document.createElement('canvas');cv.width=targetW;cv.height=targetH;
+      const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=true;
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,targetW,targetH);
+      const mode=o.fitMode||'fill';
+      if(mode==='fill')ctx.drawImage(img,0,0,targetW,targetH);
+      else{
+        const scale=mode==='crop'?Math.max(targetW/iw,targetH/ih):Math.min(targetW/iw,targetH/ih);
+        const dw=iw*scale,dh=ih*scale,dx=(targetW-dw)/2,dy=(targetH-dh)/2;
+        ctx.drawImage(img,dx,dy,dw,dh);
+      }
+      const px=ctx.getImageData(0,0,targetW,targetH).data,bytesPerRow=Math.ceil(targetW/8),arr=new Uint8Array(bytesPerRow*targetH);
+      for(let y=0;y<targetH;y++)for(let x=0;x<targetW;x++){
+        const i=(y*targetW+x)*4,gray=.299*px[i]+.587*px[i+1]+.114*px[i+2];
+        if(px[i+3]>20&&gray<o.threshold)arr[y*bytesPerRow+(x>>3)]|=0x80>>(x&7);
+      }
+      let hex='';for(const v of arr)hex+=v.toString(16).padStart(2,'0').toUpperCase();
+      resolve({targetW,targetH,bytesPerRow,hex});
+    };
+    img.onerror=()=>reject(new Error('Không chuyển đổi được hình ảnh'));
+    img.src=o.dataUrl;
   });
 }
 async function buildZpl(overrides={}){
@@ -811,7 +820,7 @@ function exportJSON(){
 
 function addImageFile(file){
   if(!file)return;
-  if(file.size>5*1024*1024){alert('Hình quá lớn. Vui lòng chọn file ≤ 5 MB.');return;}
+  if(file.size>2*1024*1024){alert('Hình quá lớn. Vui lòng chọn file ≤ 2 MB để tránh vượt giới hạn LocalStorage.');return;}
   const reader=new FileReader();
   reader.onload=()=>{
     const src=String(reader.result);
