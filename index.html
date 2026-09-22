@@ -1,166 +1,29 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZT Label Designer - Thiết kế Nhãn</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>ZT Label Designer</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1><i class="fas fa-tag"></i> ZT Label Designer</h1>
-                <div class="header-actions">
-                    <button class="btn btn-success" id="btnSave"><i class="fas fa-save"></i> Lưu</button>
-                    <button class="btn btn-info" id="btnLoad"><i class="fas fa-folder-open"></i> Tải</button>
-                    <button class="btn btn-primary" id="btnPrinterConnect"><i class="fas fa-bluetooth"></i> Kết nối máy in</button>
-                    <button class="btn btn-warning" id="btnBluetoothPrint" disabled><i class="fas fa-print"></i> In Bluetooth</button>
-                    <button class="btn btn-secondary" id="btnWebPrint"><i class="fas fa-browser"></i> In Web</button>
-                </div>
-            </div>
-            <div class="connection-status" id="connectionStatus">
-                <i class="fas fa-circle-notch"></i> <span id="statusText">Chưa kết nối</span>
-            </div>
-        </header>
-
-        <div class="main-content">
-            <!-- Toolbar -->
-            <aside class="toolbar">
-                <div class="tool-section">
-                    <h3>Công cụ</h3>
-                    <button class="tool-btn active" id="toolSelect" title="Chọn (V)">
-                        <i class="fas fa-arrow-pointer"></i> Chọn
-                    </button>
-                    <button class="tool-btn" id="toolText" title="Văn bản (T)">
-                        <i class="fas fa-font"></i> Văn bản
-                    </button>
-                    <button class="tool-btn" id="toolImage" title="Hình ảnh (I)">
-                        <i class="fas fa-image"></i> Hình ảnh
-                    </button>
-                    <button class="tool-btn" id="toolRect" title="Hình chữ nhật (R)">
-                        <i class="fas fa-square"></i> Hình
-                    </button>
-                    <button class="tool-btn" id="toolQR" title="QR Code (Q)">
-                        <i class="fas fa-qrcode"></i> QR Code
-                    </button>
-                </div>
-
-                <div class="tool-section">
-                    <h3>Thuộc tính</h3>
-                    <div class="property">
-                        <label>Màu sắc:</label>
-                        <input type="color" id="colorPicker" value="#000000">
-                    </div>
-                    <div class="property">
-                        <label>Kích thước chữ:</label>
-                        <input type="number" id="fontSize" value="12" min="8" max="72">
-                    </div>
-                    <div class="property">
-                        <label>Độ dày nét:</label>
-                        <input type="number" id="strokeWidth" value="2" min="1" max="10">
-                    </div>
-                    <div class="property">
-                        <label>Độ mờ:</label>
-                        <input type="range" id="opacity" value="100" min="0" max="100">
-                        <span id="opacityValue">100%</span>
-                    </div>
-                </div>
-
-                <div class="tool-section">
-                    <h3>Hành động</h3>
-                    <button class="tool-btn" id="btnClear"><i class="fas fa-trash"></i> Xóa tất cả</button>
-                    <button class="tool-btn" id="btnDelete"><i class="fas fa-times"></i> Xóa chọn</button>
-                    <button class="tool-btn" id="btnDuplicate"><i class="fas fa-copy"></i> Sao chép</button>
-                    <button class="tool-btn" id="btnBringForward"><i class="fas fa-arrow-up"></i> Lên trước</button>
-                    <button class="tool-btn" id="btnSendBackward"><i class="fas fa-arrow-down"></i> Lùi sau</button>
-                </div>
-
-                <div class="tool-section">
-                    <h3>Máy in Bluetooth</h3>
-                    <div class="printer-info" id="printerInfo">
-                        <p><strong>Trạng thái:</strong> <span id="printerStatus">Chưa kết nối</span></p>
-                        <p id="printerName" style="display:none"><strong>Máy in:</strong> <span id="printerNameValue"></span></p>
-                    </div>
-                    <div class="property">
-                        <label>Số bản in:</label>
-                        <input type="number" id="printCopies" value="1" min="1" max="99">
-                    </div>
-                    <button class="tool-btn" id="btnPrinterInfo"><i class="fas fa-info-circle"></i> Thông tin máy in</button>
-                </div>
-
-                <div class="tool-section">
-                    <h3>Xem trước</h3>
-                    <div id="preview" class="preview"></div>
-                </div>
-            </aside>
-
-            <!-- Canvas Area -->
-            <div class="canvas-wrapper">
-                <div class="canvas-container">
-                    <!-- Lưới nhãn 2 cột -->
-                    <div id="labelGrid" class="label-grid">
-                        <!-- Label 1 -->
-                        <div class="label-item">
-                            <canvas id="canvas1" class="label-canvas" width="226" height="141"></canvas>
-                        </div>
-                        <!-- Label 2 -->
-                        <div class="label-item">
-                            <canvas id="canvas2" class="label-canvas" width="226" height="141"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="canvas-info">
-                    <p>Kích thước: <strong>40mm × 25mm</strong> | Độ phân giải: <strong>226×141 pixels</strong> (8.5pt/mm)</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hidden file inputs -->
-    <input type="file" id="imageInput" accept="image/*" style="display:none">
-    <input type="file" id="loadFile" accept=".json" style="display:none">
-
-    <!-- Modals -->
-    <div id="qrModal" class="modal" style="display:none">
-        <div class="modal-content">
-            <span class="modal-close" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
-            <h2>Thêm QR Code</h2>
-            <input type="text" id="qrInput" placeholder="Nhập dữ liệu QR Code" style="width:100%; padding:10px; margin:10px 0;">
-            <button class="btn btn-success" onclick="addQRCode()">Thêm QR Code</button>
-        </div>
-    </div>
-
-    <!-- Printer Info Modal -->
-    <div id="printerInfoModal" class="modal" style="display:none">
-        <div class="modal-content">
-            <span class="modal-close" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
-            <h2>Thông tin máy in ZT410</h2>
-            <div id="printerDetails" style="background:#f5f5f5; padding:15px; border-radius:8px; max-height:400px; overflow-y:auto;">
-                <p><i class="fas fa-spinner fa-spin"></i> Đang lấy thông tin...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Print Progress Modal -->
-    <div id="printProgressModal" class="modal" style="display:none">
-        <div class="modal-content" style="text-align:center;">
-            <h2>Đang in nhãn...</h2>
-            <div style="margin:20px 0;">
-                <i class="fas fa-spinner fa-spin" style="font-size:48px; color:#667eea;"></i>
-            </div>
-            <p id="progressText">Vui lòng chờ...</p>
-            <div class="progress-bar">
-                <div id="progressFill" class="progress-fill"></div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode.js/1.5.3/qrcode.min.js"></script>
-    <script src="js/canvas.js"></script>
-    <script src="js/printer.js"></script>
-    <script src="js/app.js"></script>
-</body>
-</html>
+<header class="topbar">
+  <div><strong>ZT Label Designer</strong><small>Zebra ZT410 · ZPL · Bluetooth Classic</small></div>
+  <div class="top-actions"><button id="newBtn">New</button><button id="saveBtn">Save</button><button id="loadBtn">Load</button></div>
+</header>
+<main class="app">
+<section class="toolbar">
+<button data-add="text">＋ Text</button><button data-add="barcode">＋ Barcode</button><button data-add="qr">＋ QR</button><button data-add="line">＋ Line</button><button data-add="box">＋ Box</button>
+</section>
+<section class="printer-card">
+<div class="row"><label>Width <input id="labelW" type="number" step="0.1" value="40"></label><label>Height <input id="labelH" type="number" step="0.1" value="25"></label><label>DPI <select id="dpi"><option value="203">203</option><option value="300">300</option></select></label></div>
+<div class="row"><span id="serialSupport" class="pill">Checking Web Serial…</span><span id="printerStatus" class="pill">Disconnected</span><button id="connectBtn" class="primary">🔵 Kết nối ZT410</button><button id="disconnectBtn">Ngắt kết nối</button></div>
+</section>
+<section class="workspace"><div class="canvas-wrap"><div id="canvas" class="label-canvas" aria-label="Label canvas"></div></div><aside class="properties"><h3>Thuộc tính</h3><div id="emptyProps" class="muted">Chạm một đối tượng để chỉnh sửa.</div><div id="props" hidden></div></aside></section>
+<section class="bottom-actions"><button id="previewBtn">Preview ZPL</button><button id="copyBtn">Copy ZPL</button><button id="printBtn" class="primary">🖨 In</button></section>
+</main>
+<dialog id="zplDialog"><form method="dialog" class="dialog"><h3>ZPL</h3><textarea id="zplOutput" spellcheck="false"></textarea><div class="dialog-actions"><button value="cancel">Đóng</button><button id="dialogCopy" type="button">Copy</button></div></form></dialog>
+<dialog id="templateDialog"><form method="dialog" class="dialog"><h3>Templates</h3><div id="templateList"></div><div class="dialog-actions"><button value="cancel">Đóng</button></div></form></dialog>
+<script src="js/zpl-generator.js"></script><script src="js/printer.js"></script><script src="js/app.js"></script>
+</body></html>
