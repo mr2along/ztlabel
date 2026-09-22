@@ -1,0 +1,36 @@
+name: V2 CI
+
+on:
+  push:
+    branches: ["main", "feature/web-designer-v2"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate HTML script syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path("v2/index.html").read_text(encoding="utf-8")
+          scripts=re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", p, re.S|re.I)
+          assert scripts, "No inline script found"
+          Path("/tmp/v2-inline.js").write_text(scripts[-1], encoding="utf-8")
+          PY
+          node --check /tmp/v2-inline.js
+      - name: Verify required files
+        run: |
+          test -f v2/index.html
+          grep -q "\^CI28" v2/index.html
+          grep -q "DOTS_PER_MM" v2/index.html
+          grep -q "navigator.serial" v2/index.html
+          grep -q "writer.releaseLock" v2/index.html
