@@ -662,15 +662,20 @@ function setPreset(value){
   saveCurrent();render();
 }
 
+function clampObjectsToLabel(){
+  for(const o of state.label.objects){
+    o.w=Math.min(Math.max(0,o.w),state.label.widthMm);
+    o.h=Math.min(Math.max(0,o.h),state.label.heightMm);
+    o.x=mm(o.x,0,Math.max(0,state.label.widthMm-o.w));
+    o.y=mm(o.y,0,Math.max(0,state.label.heightMm-o.h));
+  }
+}
 function setLabelProp(kind,value){
   const before=snapshot();
   if(kind==='width')state.label.widthMm=mm(value,1,300);
   if(kind==='height')state.label.heightMm=mm(value,1,300);
   if(kind==='dpi')state.label.dpi=Number(value)===300?300:203;
-  for(const o of state.label.objects){
-    o.x=mm(o.x,0,Math.max(0,state.label.widthMm-o.w));
-    o.y=mm(o.y,0,Math.max(0,state.label.heightMm-o.h));
-  }
+  clampObjectsToLabel();
   if(snapshot()!==before){history.push(before);if(history.length>80)history.shift();future=[];}
   saveCurrent();render();
 }
@@ -799,18 +804,24 @@ async function writeZplPayload(text){
 async function printBatch(){
   if(!port){alert('Chưa kết nối ZT410.');return}
   const rows=parseCSV($('batchInput').value);if(!rows.length){alert('Batch không có dữ liệu hợp lệ.');return}
-  $('btnRunBatch').disabled=true;let bytes=0;
+  $('btnRunBatch').disabled=true;let bytes=0,sent=0;
   try{
-    const start=String(state.label.serialStart);
+    updateConnectionUI('Batch 0/'+rows.length);
+    const start=String(state.label.serialStart),step=Number(state.label.serialStep||1);
     for(let i=0;i<rows.length;i++){
-      const row={...rows[i]};if(!row.serial)row.serial=serialValue(start,Number(state.label.serialStep||1)*i);row.row=i+1;
-      bytes+=await writeZplPayload(await zpl(row));if(i<rows.length-1)await new Promise(r=>setTimeout(r,30));
-      updateConnectionUI('Batch '+(i+1)+'/'+rows.length);
+      const row={...rows[i]};if(!row.serial)row.serial=serialValue(start,step*i);row.row=i+1;
+      bytes+=await writeZplPayload(await zpl(row));sent++;
+      if(!rows[i].serial){state.label.serialStart=serialValue(start,step*sent);saveCurrent();}
+      if(i<rows.length-1)await new Promise(r=>setTimeout(r,30));
+      updateConnectionUI('Batch '+sent+'/'+rows.length);
     }
-    saveSerialAfter(start,rows.length);
-    recordPrintHistory({status:'batch sent',rows:rows.length,bytes});showToast('Đã gửi batch '+rows.length+' dòng');
-  }catch(e){recordPrintHistory({status:'batch error',rows:rows.length,bytes,error:String(e?.message||e)});alert('Batch lỗi: '+(e?.message||e));}
-  finally{$('btnRunBatch').disabled=false;updateConnectionUI('Print sent');}
+    render();
+    recordPrintHistory({status:'batch sent',rows:rows.length,sent,bytes});showToast('Đã gửi batch '+sent+' dòng');
+  }catch(e){
+    render();
+    recordPrintHistory({status:'batch error',rows:rows.length,sent,bytes,error:String(e?.message||e)});
+    alert('Batch lỗi sau '+sent+'/'+rows.length+' dòng: '+(e?.message||e));
+  }finally{$('btnRunBatch').disabled=false;updateConnectionUI(port?'Connected':'Disconnected');}
 }
 
 function exportJSON(){
@@ -915,20 +926,25 @@ async function printLabel(){
   const copies=Math.max(1,Math.min(99,Math.round(Number($('copies').value)||1)));
   if(!port.writable){alert('Cổng không writable. Hãy kết nối lại.');return;}
   $('btnPrint').disabled=true;
+  let bytes=0,sent=0;
   try{
     updateConnectionUI('Printing…');
-    const start=String(state.label.serialStart);let bytes=0;
+    const start=String(state.label.serialStart),step=Number(state.label.serialStep||1);
     for(let i=0;i<copies;i++){
-      const serial=serialValue(start,Number(state.label.serialStep||1)*i);
+      const serial=serialValue(start,step*i);
       bytes+=await writeZplPayload(await zpl({serial}));
+      sent++;
+      state.label.serialStart=serialValue(start,step*sent);
+      saveCurrent();
       if(i<copies-1)await new Promise(r=>setTimeout(r,30));
     }
-    saveSerialAfter(start,copies);
-    recordPrintHistory({status:'sent',copies,bytes});
-    updateConnectionUI('Print sent ×'+copies);showToast('Đã gửi '+copies+' lệnh in');
+    render();
+    recordPrintHistory({status:'sent',copies:sent,bytes});
+    updateConnectionUI('Print sent ×'+sent);showToast('Đã gửi '+sent+' lệnh in');
   }catch(e){
-    recordPrintHistory({status:'error',copies,bytes:0,error:String(e?.message||e)});
-    updateConnectionUI('Print error');alert('Lỗi gửi ZPL: '+(e?.message||e));
+    render();
+    recordPrintHistory({status:'error',copies,sent,bytes,error:String(e?.message||e)});
+    updateConnectionUI('Print error');alert('Lỗi gửi ZPL sau '+sent+'/'+copies+' lệnh: '+(e?.message||e));
   }finally{$('btnPrint').disabled=!port;}
 }
 async function queryPrinterStatus(){
