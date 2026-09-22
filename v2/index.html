@@ -40,7 +40,7 @@ header small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .barcode .bars{display:flex;align-items:stretch;justify-content:center;gap:0;min-height:55%}
 .barcode .bars i{display:block;height:100%}
 .barcode .human{margin-top:2px;white-space:nowrap;overflow:hidden}
-.obj.qr{display:grid;place-items:center;border:1px solid #111;font:9px/1 monospace;background-color:#fff;background-image:
+.obj.image{background:#fff;display:block}.obj.image img{display:block;width:100%;height:100%;object-fit:fill;user-select:none;pointer-events:none}.obj.qr{display:grid;place-items:center;border:1px solid #111;font:9px/1 monospace;background-color:#fff;background-image:
 linear-gradient(45deg,#111 25%,transparent 25%,transparent 75%,#111 75%),
 linear-gradient(45deg,#111 25%,transparent 25%,transparent 75%,#111 75%);
 background-size:8px 8px;background-position:0 0,4px 4px}
@@ -91,7 +91,7 @@ background-size:8px 8px;background-position:0 0,4px 4px}
   <button data-add="barcode">＋ Code128</button>
   <button data-add="qr">＋ QR</button>
   <button data-add="line">＋ Line</button>
-  <button data-add="box">＋ Box</button>
+  <button data-add="box">＋ Box</button><button id="btnImage">＋ Image</button>
   <button id="btnDuplicate">⧉ Duplicate</button>
   <button id="btnDelete">Delete</button>
   <button id="btnClear">Clear</button>
@@ -102,8 +102,17 @@ background-size:8px 8px;background-position:0 0,4px 4px}
 
 <div class="card">
   <div class="row">
-    <label>Label W <input id="labelW" type="number" min="1" max="200" step=".1"></label>
-    <label>Label H <input id="labelH" type="number" min="1" max="200" step=".1"></label>
+    <label>Size
+      <select id="labelPreset">
+        <option value="40x25">40 × 25 mm</option>
+        <option value="50x30">50 × 30 mm</option>
+        <option value="60x40">60 × 40 mm</option>
+        <option value="100x50">100 × 50 mm</option>
+        <option value="custom">Custom</option>
+      </select>
+    </label>
+    <label>W <input id="labelW" type="number" min="1" max="300" step=".1"></label>
+    <label>H <input id="labelH" type="number" min="1" max="300" step=".1"></label>
     <label>DPI
       <select id="dpi"><option value="203">203</option><option value="300">300</option></select>
     </label>
@@ -115,7 +124,7 @@ background-size:8px 8px;background-position:0 0,4px 4px}
     <button id="btnSave">Save As</button>
     <button id="btnExport">Export JSON</button>
     <button id="btnImport">Import JSON</button>
-    <input id="fileImport" class="file-input" type="file" accept=".json,application/json">
+    <input id="fileImport" class="file-input" type="file" accept=".json,application/json"><input id="fileImage" class="file-input" type="file" accept="image/png,image/jpeg,image/webp,image/bmp">
   </div>
 </div>
 
@@ -155,7 +164,8 @@ const DEFAULTS = {
   barcode: {type:'barcode', x:5,  y:12, w:30, h:9, data:'123456789', moduleWidth:2, humanReadable:true},
   qr:      {type:'qr',      x:30, y:11, w:8,  h:8,  data:'ABC123', magnification:4},
   line:    {type:'line',    x:4,  y:21, w:32, h:.5, thickness:.5},
-  box:     {type:'box',     x:3,  y:2,  w:34, h:21, thickness:.5}
+  box:     {type:'box',     x:3,  y:2,  w:34, h:21, thickness:.5},
+  image:   {type:'image',   x:5,  y:5,  w:20, h:15, dataUrl:'', sourceW:100, sourceH:100, threshold:160}
 };
 
 const state = {label:{widthMm:40,heightMm:25,dpi:203,objects:[]}, selectedId:null};
@@ -203,7 +213,7 @@ function redo(){
 function updateHistoryButtons(){ $('btnUndo').disabled=!history.length; $('btnRedo').disabled=!future.length; }
 
 function normalizeObject(o){
-  const type=['text','barcode','qr','line','box'].includes(o?.type)?o.type:'text';
+  const type=['text','barcode','qr','line','box','image'].includes(o?.type)?o.type:'text';
   const base=clone(DEFAULTS[type]);
   const x=Object.assign(base,o||{});
   x.id=String(o?.id || uid());
@@ -219,6 +229,7 @@ function normalizeObject(o){
   if(type==='barcode'){x.data=String(x.data??'');x.moduleWidth=Math.max(1,Math.min(10,Math.round(+x.moduleWidth||2)));x.humanReadable=x.humanReadable!==false;}
   if(type==='qr'){x.data=String(x.data??'');x.magnification=Math.max(1,Math.min(10,Math.round(+x.magnification||4)));}
   if(type==='line'||type==='box') x.thickness=Math.max(.1,Math.min(5,+x.thickness||.5));
+  if(type==='image'){x.dataUrl=String(x.dataUrl||'');x.sourceW=Math.max(1,Math.round(+x.sourceW||100));x.sourceH=Math.max(1,Math.round(+x.sourceH||100));x.threshold=Math.max(0,Math.min(255,Math.round(+x.threshold||160)));}
   return x;
 }
 
@@ -297,7 +308,12 @@ function createObjectElement(o,s){
   if(o.type==='text') el.textContent=o.text;
   else if(o.type==='barcode') drawBarcode(el,o);
   else if(o.type==='qr') el.textContent='QR\\n'+o.data;
-  else if(o.type==='line'){}
+  else if(o.type==='image') { const img=el.querySelector('img'); if(img) img.src=o.dataUrl; }
+  else if(o.type==='image'){
+    const img=document.createElement('img');
+    img.src=o.dataUrl; img.alt='Label image'; img.draggable=false;
+    el.appendChild(img);
+  }else if(o.type==='line'){}
   else if(o.type==='box'){}
   el.addEventListener('pointerdown',e=>beginDrag(e,o.id,el));
   return el;
@@ -308,6 +324,7 @@ function render(){
   $('labelW').value=l.widthMm;
   $('labelH').value=l.heightMm;
   $('dpi').value=String(l.dpi);
+  updateLabelPresetUI();
   const s=labelScale();
   $('label').style.width=(l.widthMm*s)+'px';
   $('label').style.height=(l.heightMm*s)+'px';
@@ -403,6 +420,9 @@ function renderProps(){
     field(grid,'Data',o.data,'text',null,i=>{o.data=i.value;},null,true);
     field(grid,'Magnification',o.magnification,'number','1',i=>{o.magnification=Math.max(1,Math.min(10,Math.round(+i.value||4)));},null);
   }
+  if(o.type==='image'){
+    field(grid,'Threshold',o.threshold,'number','1',i=>{o.threshold=Math.max(0,Math.min(255,Math.round(+i.value||160)));},null);
+  }
   if(o.type==='line'||o.type==='box'){
     field(grid,'Thickness',o.thickness,'number','.1',i=>{o.thickness=Math.max(.1,Math.min(5,+i.value||.5));},null);
   }
@@ -444,6 +464,29 @@ function clearAll(){
   checkpoint();state.label.objects=[];state.selectedId=null;saveCurrent();render();
 }
 
+const LABEL_PRESETS={
+  '40x25':[40,25],
+  '50x30':[50,30],
+  '60x40':[60,40],
+  '100x50':[100,50]
+};
+function updateLabelPresetUI(){
+  const key=Object.entries(LABEL_PRESETS).find(([,v])=>Math.abs(v[0]-state.label.widthMm)<.05&&Math.abs(v[1]-state.label.heightMm)<.05)?.[0]||'custom';
+  $('labelPreset').value=key;
+}
+function setPreset(value){
+  if(value==='custom'){updateLabelPresetUI();return;}
+  const p=LABEL_PRESETS[value]; if(!p)return;
+  checkpoint();
+  state.label.widthMm=p[0]; state.label.heightMm=p[1];
+  for(const o of state.label.objects){
+    o.x=mm(o.x,0,Math.max(0,state.label.widthMm-o.w));
+    o.y=mm(o.y,0,Math.max(0,state.label.heightMm-o.h));
+    o.w=Math.min(o.w,state.label.widthMm); o.h=Math.min(o.h,state.label.heightMm);
+  }
+  saveCurrent();render();
+}
+
 function setLabelProp(kind,value){
   const before=snapshot();
   if(kind==='width')state.label.widthMm=mm(value,1,200);
@@ -457,7 +500,84 @@ function setLabelProp(kind,value){
   saveCurrent();render();
 }
 
-function zpl(){
+function dataUrlToMono(dataUrl,threshold){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=img.naturalWidth||img.width; canvas.height=img.naturalHeight||img.height;
+      if(!canvas.width||!canvas.height){reject(new Error('Invalid image'));return;}
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,0,0);
+      const px=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+      const bytesPerRow=Math.ceil(canvas.width/8),out=new Uint8Array(bytesPerRow*canvas.height);
+      for(let y=0;y<canvas.height;y++){
+        for(let x=0;x<canvas.width;x++){
+          const i=(y*canvas.width+x)*4,alpha=px[i+3];
+          const gray=(0.299*px[i]+0.587*px[i+1]+0.114*px[i+2]);
+          if(alpha>20 && gray<threshold) out[y*bytesPerRow+(x>>3)] |= (0x80>>(x&7));
+        }
+      }
+      let hex=''; for(const b of out)hex+=b.toString(16).padStart(2,'0').toUpperCase();
+      resolve({width:canvas.width,height:canvas.height,bytesPerRow,hex});
+    };
+    img.onerror=()=>reject(new Error('Không đọc được hình ảnh'));
+    img.src=dataUrl;
+  });
+}
+function imageToZpl(o,dpi){
+  return dataUrlToMono(o.dataUrl,o.threshold).then(b=>{
+    const targetW=Math.max(1,dots(o.w,dpi)),targetH=Math.max(1,dots(o.h,dpi));
+    if(b.width!==targetW||b.height!==targetH){
+      // Regenerate at the actual print size so the physical output matches W/H.
+      return new Promise((resolve,reject)=>{
+        const img=new Image();
+        img.onload=()=>{
+          const cv=document.createElement('canvas');cv.width=targetW;cv.height=targetH;
+          const ctx=cv.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=true;ctx.drawImage(img,0,0,targetW,targetH);
+          const px=ctx.getImageData(0,0,targetW,targetH).data,bytesPerRow=Math.ceil(targetW/8),arr=new Uint8Array(bytesPerRow*targetH);
+          for(let y=0;y<targetH;y++)for(let x=0;x<targetW;x++){
+            const i=(y*targetW+x)*4,gray=.299*px[i]+.587*px[i+1]+.114*px[i+2];
+            if(px[i+3]>20&&gray<o.threshold)arr[y*bytesPerRow+(x>>3)]|=0x80>>(x&7);
+          }
+          let hex='';for(const v of arr)hex+=v.toString(16).padStart(2,'0').toUpperCase();
+          resolve({targetW,targetH,bytesPerRow,hex});
+        };
+        img.onerror=()=>reject(new Error('Không chuyển đổi được hình ảnh'));
+        img.src=o.dataUrl;
+      });
+    }
+    return {targetW:b.width,targetH:b.height,bytesPerRow:b.bytesPerRow,hex:b.hex};
+  });
+}
+async function buildZpl(){
+  const l=state.label,dpi=l.dpi;
+  let out='^XA^CI28^PW'+dots(l.widthMm,dpi)+'^LL'+dots(l.heightMm,dpi);
+  for(const o of l.objects){
+    const x=dots(o.x,dpi),y=dots(o.y,dpi);
+    if(o.type==='text'){
+      const fs=Math.max(8,dots(o.fontSize,dpi)),bw=Math.max(1,dots(o.w,dpi));
+      const lines=Math.max(1,Math.floor((o.h*DOTS_PER_MM[dpi])/Math.max(1,fs)));
+      out+='^FO'+x+','+y+'^A0N,'+fs+','+fs+'^FB'+bw+','+lines+',0,L,0^FD'+cleanData(o.text)+'^FS';
+    }else if(o.type==='barcode'){
+      out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BCN,'+Math.max(8,dots(o.h,dpi))+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(o.data)+'^FS';
+    }else if(o.type==='qr'){
+      out+='^FO'+x+','+y+'^BQN,2,'+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(o.data)+'^FS';
+    }else if(o.type==='image'){
+      const b=await imageToZpl(o,dpi);
+      const total=b.hex.length/2;
+      out+='^FO'+x+','+y+'^GFA,'+total+','+total+','+b.bytesPerRow+','+b.hex+'^FS';
+    }else if(o.type==='line'){
+      out+='^FO'+x+','+y+'^GB'+Math.max(1,dots(o.w,dpi))+','+Math.max(1,dots(o.h,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
+    }else if(o.type==='box'){
+      out+='^FO'+x+','+y+'^GB'+Math.max(1,dots(o.w,dpi))+','+Math.max(1,dots(o.h,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
+    }
+  }
+  return out+'^XZ\n';
+}
+async function zpl(){ return buildZpl(); }
+
+
   const l=state.label,dpi=l.dpi;
   let out='^XA^CI28^PW'+dots(l.widthMm,dpi)+'^LL'+dots(l.heightMm,dpi);
   for(const o of l.objects){
@@ -480,12 +600,34 @@ function zpl(){
   return out+'^XZ\n';
 }
 
-function showZpl(){ $('zplOutput').value=zpl();$('zplModal').hidden=false; }
-async function copyZpl(){ try{await navigator.clipboard.writeText(zpl());showToast('Đã copy ZPL');}catch{showZpl();showToast('Clipboard bị chặn; ZPL đã mở để copy thủ công.');} }
+async function showZpl(){ try{$('zplOutput').value=await zpl();$('zplModal').hidden=false;}catch(e){alert('Không tạo được ZPL: '+e.message);} }
+async function copyZpl(){ try{await navigator.clipboard.writeText(await zpl());showToast('Đã copy ZPL');}catch{await showZpl();showToast('Clipboard bị chặn; ZPL đã mở để copy thủ công.');} }
 
 function exportJSON(){
   const blob=new Blob([JSON.stringify({version:2,label:state.label},null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='zt410-label.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function addImageFile(file){
+  if(!file)return;
+  if(file.size>5*1024*1024){alert('Hình quá lớn. Vui lòng chọn file ≤ 5 MB.');return;}
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const src=String(reader.result);
+    const img=new Image();
+    img.onload=()=>{
+      checkpoint();
+      const maxW=Math.max(8,state.label.widthMm-4),maxH=Math.max(8,state.label.heightMm-4);
+      const ratio=(img.naturalWidth||1)/(img.naturalHeight||1);
+      let w=Math.min(25,maxW),h=w/ratio;
+      if(h>maxH){h=maxH;w=h*ratio;}
+      const o=normalizeObject({type:'image',x:2,y:2,w,h,dataUrl:src,sourceW:img.naturalWidth,sourceH:img.naturalHeight,threshold:160});
+      state.label.objects.push(o);state.selectedId=o.id;saveCurrent();render();showToast('Đã chèn hình ảnh');
+    };
+    img.onerror=()=>alert('Không thể đọc hình ảnh.');
+    img.src=src;
+  };
+  reader.readAsDataURL(file);
 }
 
 function importJSON(file){
@@ -562,7 +704,7 @@ async function printLabel(){
   if(!port){alert('Chưa kết nối ZT410.');return;}
   const copies=Math.max(1,Math.min(99,Math.round(Number($('copies').value)||1)));
   if(!port.writable){alert('Cổng không writable. Hãy kết nối lại.');return;}
-  const payload=new TextEncoder().encode(zpl());
+  const payload=new TextEncoder().encode(await zpl());
   writer=port.writable.getWriter();
   try{
     updateConnectionUI('Printing…');
@@ -604,9 +746,13 @@ $('btnSave').onclick=saveAs;
 $('btnLoad').onclick=loadTemplate;
 $('btnExport').onclick=exportJSON;
 $('btnImport').onclick=()=>$('fileImport').click();
+$('btnImage').onclick=()=>$('fileImage').click();
+$('fileImage').onchange=e=>{const f=e.target.files?.[0];if(f)addImageFile(f);e.target.value='';};
 $('fileImport').onchange=e=>{const f=e.target.files?.[0];if(f)importJSON(f);e.target.value='';};
 $('btnCloseZpl').onclick=()=>$('zplModal').hidden=true;
+$('labelPreset').onchange=e=>setPreset(e.target.value);
 $('labelW').onchange=e=>setLabelProp('width',e.target.value);
+
 $('labelH').onchange=e=>setLabelProp('height',e.target.value);
 $('dpi').onchange=e=>setLabelProp('dpi',e.target.value);
 window.addEventListener('resize',()=>render());
