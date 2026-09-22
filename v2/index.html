@@ -734,7 +734,7 @@ async function buildZpl(overrides={}){
     }else if(o.type==='barcode'){
       out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BC'+fw+','+Math.max(8,dots(o.h,dpi))+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(resolveText(o.data,overrides))+'^FS';
     }else if(o.type==='qr'){
-      out+='^FO'+x+','+y+'^BQN,'+fw+','+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(resolveText(o.data,overrides))+'^FS';
+      out+='^FO'+x+','+y+'^BQN,2,'+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(resolveText(o.data,overrides))+'^FS';
     }else if(o.type==='image'){
       const b=await imageToZpl(o,dpi);
       const total=b.hex.length/2;
@@ -905,30 +905,58 @@ async function printLabel(){
   if(!port){alert('Chưa kết nối ZT410.');return;}
   const copies=Math.max(1,Math.min(99,Math.round(Number($('copies').value)||1)));
   if(!port.writable){alert('Cổng không writable. Hãy kết nối lại.');return;}
-  const payload=new TextEncoder().encode(await zpl());
-  writer=port.writable.getWriter();
+  $('btnPrint').disabled=true;
   try{
     updateConnectionUI('Printing…');
+    const start=String(state.label.serialStart);let bytes=0;
     for(let i=0;i<copies;i++){
-      await writer.write(payload);
+      const serial=serialValue(start,Number(state.label.serialStep||1)*i);
+      bytes+=await writeZplPayload(await zpl({serial}));
       if(i<copies-1)await new Promise(r=>setTimeout(r,30));
     }
-    updateConnectionUI('Print sent ×'+copies);
-    showToast('Đã gửi '+copies+' lệnh in');
+    saveSerialAfter(start,copies);
+    recordPrintHistory({status:'sent',copies,bytes});
+    updateConnectionUI('Print sent ×'+copies);showToast('Đã gửi '+copies+' lệnh in');
   }catch(e){
-    updateConnectionUI('Print error');
-    alert('Lỗi gửi ZPL: '+(e?.message||e));
-  }finally{
-    try{writer.releaseLock();}catch{}
-    writer=null;
-  }
+    recordPrintHistory({status:'error',copies,bytes:0,error:String(e?.message||e)});
+    updateConnectionUI('Print error');alert('Lỗi gửi ZPL: '+(e?.message||e));
+  }finally{$('btnPrint').disabled=!port;}
 }
-
+async function queryPrinterStatus(){
+  if(!port){alert('Chưa kết nối ZT410.');return;}
+  try{
+    updateConnectionUI('Querying status…');
+    await writeZplPayload('~HS\r\n');
+    if(!port.readable){$('statusOutput').value='Đã gửi ~HS nhưng cổng không hỗ trợ đọc dữ liệu.';$('statusModal').hidden=false;return;}
+    const reader=port.readable.getReader(),decoder=new TextDecoder();let response='';
+    try{
+      const timer=setTimeout(()=>{reader.cancel().catch(()=>{});},1800);
+      while(true){
+        const {value,done}=await reader.read();if(done)break;
+        if(value)response+=decoder.decode(value,{stream:true});
+        if(response.includes('\r\n\r\n')||response.length>4000)break;
+      }
+      clearTimeout(timer);
+    }finally{try{reader.releaseLock()}catch{}}
+    $('statusOutput').value=response||'Không nhận được phản hồi trong 1,8 giây. Đây là kiểm tra best-effort; máy in có thể không trả lời ~HS qua cấu hình serial hiện tại.';
+    $('statusModal').hidden=false;
+    updateConnectionUI('Connected');
+  }catch(e){$('statusOutput').value='Status error: '+(e?.message||e);$('statusModal').hidden=false;updateConnectionUI('Connected');}
+}
 function serialEventHandlers(){
   if(!('serial' in navigator))return;
   navigator.serial.addEventListener('disconnect',e=>{
     if(e.target===port){port=null;writer=null;updateConnectionUI('Printer disconnected');showToast('ZT410 đã ngắt kết nối');}
   });
+  navigator.serial.addEventListener('connect',()=>{if(state.autoReconnect)tryAutoReconnect();});
+}
+async function tryAutoReconnect(){
+  if(!state.autoReconnect||port||!('serial' in navigator)||!window.isSecureContext)return;
+  try{
+    const ports=await navigator.serial.getPorts();if(!ports.length)return;
+    const p=ports[0];await p.open({baudRate:Number($('baud').value)||115200});
+    port=p;updateConnectionUI('Auto connected');showToast('Đã tự kết nối cổng đã cấp quyền');
+  }catch(e){console.debug('auto reconnect skipped',e);}
 }
 
 document.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>add(b.dataset.add)));
@@ -951,31 +979,56 @@ $('btnImage').onclick=()=>$('fileImage').click();
 $('fileImage').onchange=e=>{const f=e.target.files?.[0];if(f)addImageFile(f);e.target.value='';};
 $('fileImport').onchange=e=>{const f=e.target.files?.[0];if(f)importJSON(f);e.target.value='';};
 $('btnCloseZpl').onclick=()=>$('zplModal').hidden=true;
+$('btnCloseBatch').onclick=()=>$('batchModal').hidden=true;
+$('btnCloseHistory').onclick=()=>$('historyModal').hidden=true;
+$('btnCloseStatus').onclick=()=>$('statusModal').hidden=true;
+$('btnRunBatch').onclick=printBatch;
+$('btnHistory').onclick=openHistory;
+$('btnClearHistory').onclick=()=>{localStorage.removeItem(STORE_HISTORY);openHistory();};
+$('btnStatus').onclick=queryPrinterStatus;
+$('btnBatch').onclick=()=>{if(!port)showToast('Kết nối máy in trước khi chạy batch.');$('batchModal').hidden=false;};
+$('btnGrid').onclick=()=>{state.view.grid=!state.view.grid;saveView();render();};
+$('btnSnap').onclick=()=>{state.view.snap=!state.view.snap;saveView();render();};
+$('btnRulers').onclick=()=>{state.view.rulers=!state.view.rulers;saveView();render();};
+$('btnAlignLeft').onclick=()=>alignSelected('left');$('btnAlignCenter').onclick=()=>alignSelected('center');$('btnAlignRight').onclick=()=>alignSelected('right');
+$('btnAlignTop').onclick=()=>alignSelected('top');$('btnAlignMiddle').onclick=()=>alignSelected('middle');$('btnAlignBottom').onclick=()=>alignSelected('bottom');
+$('btnFront').onclick=()=>moveLayer('front');$('btnUp').onclick=()=>moveLayer('up');$('btnDown').onclick=()=>moveLayer('down');$('btnBack').onclick=()=>moveLayer('back');
+$('serialStart').onchange=e=>{state.label.serialStart=String(e.target.value||'000001');saveCurrent();render();};
+$('serialStep').onchange=e=>{const n=Number(e.target.value);state.label.serialStep=Number.isFinite(n)?n:1;saveCurrent();render();};
+$('varsJSON').onchange=e=>{try{const v=JSON.parse(e.target.value||'{}');if(!v||Array.isArray(v)||typeof v!=='object')throw new Error('Variables phải là JSON object');state.label.variables=v;saveCurrent();render();}catch(err){alert('Variables JSON không hợp lệ: '+err.message);render();}};
+$('autoReconnect').onchange=e=>{state.autoReconnect=e.target.checked;try{localStorage.setItem('ztlabel:v2:autoReconnect',String(state.autoReconnect));}catch{}};
 $('labelPreset').onchange=e=>setPreset(e.target.value);
 $('labelW').onchange=e=>setLabelProp('width',e.target.value);
-
 $('labelH').onchange=e=>setLabelProp('height',e.target.value);
 $('dpi').onchange=e=>setLabelProp('dpi',e.target.value);
 window.addEventListener('resize',()=>render());
 window.addEventListener('keydown',e=>{
-  const tag=(e.target?.tagName||'').toLowerCase();
-  const editing=['input','textarea','select'].includes(tag);
+  const tag=(e.target?.tagName||'').toLowerCase(),editing=['input','textarea','select'].includes(tag);
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return;}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();duplicateSelected();return;}
+  if((e.ctrlKey||e.metaKey)&&e.key===']'){e.preventDefault();moveLayer('up');return;}
+  if((e.ctrlKey||e.metaKey)&&e.key==='['){e.preventDefault();moveLayer('down');return;}
   if(editing)return;
   const o=selected();if(!o)return;
+  if(e.key.toLowerCase()==='r'){rotateSelected(90);return;}
   const step=e.shiftKey?1:.1;
-  let changed=false;
-  if(e.key==='ArrowLeft'){o.x=mm(o.x-step,0,Math.max(0,state.label.widthMm-o.w));changed=true;}
-  if(e.key==='ArrowRight'){o.x=mm(o.x+step,0,Math.max(0,state.label.widthMm-o.w));changed=true;}
-  if(e.key==='ArrowUp'){o.y=mm(o.y-step,0,Math.max(0,state.label.heightMm-o.h));changed=true;}
-  if(e.key==='ArrowDown'){o.y=mm(o.y+step,0,Math.max(0,state.label.heightMm-o.h));changed=true;}
-  if(e.key==='Delete'){deleteSelected();return;}
-  if(changed){saveCurrent();render();}
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
+    const before=snapshot();
+    if(e.key==='ArrowLeft')o.x=mm(o.x-step,0,Math.max(0,state.label.widthMm-o.w));
+    if(e.key==='ArrowRight')o.x=mm(o.x+step,0,Math.max(0,state.label.widthMm-o.w));
+    if(e.key==='ArrowUp')o.y=mm(o.y-step,0,Math.max(0,state.label.heightMm-o.h));
+    if(e.key==='ArrowDown')o.y=mm(o.y+step,0,Math.max(0,state.label.heightMm-o.h));
+    history.push(before);if(history.length>80)history.shift();future=[];saveCurrent();render();
+  }
+  if(e.key==='Delete'){deleteSelected();}
 });
 loadCurrent();
+loadView();
+try{state.autoReconnect=JSON.parse(localStorage.getItem('ztlabel:v2:autoReconnect')||'true')}catch{state.autoReconnect=true}
 serialEventHandlers();
 render();
+setTimeout(tryAutoReconnect,350);
 </script>
 </body>
 </html>
