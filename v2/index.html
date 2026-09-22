@@ -366,7 +366,17 @@ function field(parent,labelText,value,type,step,onInput,onChange,wide=false){
   wrap.append(lab,input); parent.append(wrap); return input;
 }
 
-function updateSelectedView(){\n  const o=selected(); if(!o) return;\n  const el=$('label').querySelector('.obj.selected'); if(!el) return;\n  const s=labelScale();\n  styleObject(el,o,s);\n  if(o.type==='text') el.textContent=o.text;\n  else if(o.type==='barcode') drawBarcode(el,o);\n  else if(o.type==='qr') el.textContent='QR\\\\n'+o.data;\n}\n\nfunction renderProps(){
+function updateSelectedView(){
+  const o=selected(); if(!o) return;
+  const el=$('label').querySelector('.obj.selected'); if(!el) return;
+  const s=labelScale();
+  styleObject(el,o,s);
+  if(o.type==='text') el.textContent=o.text;
+  else if(o.type==='barcode') drawBarcode(el,o);
+  else if(o.type==='qr') el.textContent='QR\\n'+o.data;
+}
+
+function renderProps(){
   const body=$('propsBody'); body.replaceChildren();
   const o=selected();
   if(!o){body.textContent='Chọn một đối tượng.';return;}
