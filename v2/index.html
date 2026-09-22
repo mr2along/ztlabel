@@ -799,6 +799,7 @@ async function printBatch(){
       bytes+=await writeZplPayload(await zpl(row));if(i<rows.length-1)await new Promise(r=>setTimeout(r,30));
       updateConnectionUI('Batch '+(i+1)+'/'+rows.length);
     }
+    saveSerialAfter(start,rows.length);
     recordPrintHistory({status:'batch sent',rows:rows.length,bytes});showToast('Đã gửi batch '+rows.length+' dòng');
   }catch(e){recordPrintHistory({status:'batch error',rows:rows.length,bytes,error:String(e?.message||e)});alert('Batch lỗi: '+(e?.message||e));}
   finally{$('btnRunBatch').disabled=false;updateConnectionUI('Print sent');}
