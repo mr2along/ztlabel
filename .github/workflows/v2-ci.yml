@@ -43,3 +43,8 @@ jobs:
           grep -q "queryPrinterStatus" v2/index.html
           grep -q "tryAutoReconnect" v2/index.html
           grep -q "STORE_HISTORY" v2/index.html
+          grep -q "\^FW" v2/index.html
+          grep -q "\^BC" v2/index.html
+          grep -q "\^BQ" v2/index.html
+          grep -q "\^GB" v2/index.html
+          test -f .github/workflows/pages.yml
