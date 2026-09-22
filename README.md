@@ -19,7 +19,17 @@ Web label designer for Zebra ZT410, kept under `/v2/` so the existing root appli
 - ZPL preview and clipboard copy
 - Image insertion from PNG/JPEG/WebP/BMP with monochrome threshold and size mapping to ZPL
 - Web Serial connect / disconnect / print
-- Print copies
+- Print copies with automatic serial-number advancement
+- 8-handle object resize
+- 0 / 90 / 180 / 270° object rotation
+- Align to label: left / center / right / top / middle / bottom
+- Layer ordering: front / back / bring forward / send backward
+- Grid, 1 mm snap, and mm rulers
+- Dynamic variables: `{{name}}`, `{{code}}`, `{{date}}`, `{{time}}`, `{{datetime}}`, `{{serial}}`
+- CSV / TSV batch production using template variables
+- Best-effort ZT410 status query via `~HS`
+- Auto reconnect to a previously authorized serial port
+- Local print history (up to 50 records)
 - UTF-8 ZPL with `^CI28`
 
 ## Browser / transport
