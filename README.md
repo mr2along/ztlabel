@@ -1,142 +1,75 @@
-# ZT Label Designer
+# ZT Label Designer V2
 
-Ứng dụng web để thiết kế và in nhãn (label) 40mm × 25mm với tối đa 2 nhãn trên một hàng.
+Web label designer for Zebra ZT410, kept under `/v2/` so the existing root application remains untouched.
 
-## 🎯 Tính năng
+## Core scope
 
-### Thiết kế
-- 🎨 **Vẽ trên canvas**: Hỗ trợ văn bản, hình ảnh, hình dạng, QR code
-- 📐 **Kích thước chuẩn**: 40mm × 25mm (226×141 pixels)
-- 📋 **Bố cục**: 2 nhãn trên một hàng
-- 🎭 **Tùy chỉnh**: Màu sắc, kích thước chữ, độ mờ, độ dày nét
-- 🖱️ **Chỉnh sửa nâng cao**: Kéo/thả, copy, xóa, sắp xếp lớp
+- 40 × 25 mm default label
+- Preset label sizes plus custom W/H in mm (up to 300 mm in the editor)
+- 203 / 300 DPI with ZT410 dot-density mapping (8 / 12 dots per mm)
+- Text, Code128, QR, Line, Box, Image (`^GFA` monochrome)
+- Mouse/touch drag
+- X / Y / W / H property editing
+- Duplicate / Delete / Clear
+- Undo / Redo
+- Keyboard nudging
+- LocalStorage current template
+- Save / Load named templates
+- JSON import / export
+- ZPL preview and clipboard copy
+- Image insertion from PNG/JPEG/WebP/BMP with monochrome threshold, Fill / Fit / Crop modes, and size mapping to ZPL
+- Web Serial connect / disconnect / print
+- Print copies with automatic serial-number advancement
+- 8-handle object resize
+- 0 / 90 / 180 / 270° object rotation
+- Align to label: left / center / right / top / middle / bottom
+- Layer ordering: front / back / bring forward / send backward
+- Grid, 1 mm snap, and mm rulers
+- Dynamic variables: `{{name}}`, `{{code}}`, `{{date}}`, `{{time}}`, `{{datetime}}`, `{{serial}}`
+- CSV / TSV batch production using template variables
+- Best-effort ZT410 status query via `~HS`
+- Auto reconnect to a previously authorized serial port
+- Local print history (up to 50 records)
+- UTF-8 ZPL with `^CI28`
 
-### Công cụ
+## Browser / transport
 
-| Công cụ | Phím tắt | Chức năng |
-|---------|---------|----------|
-| Chọn | V | Di chuyển, chỉnh sửa các phần tử |
-| Văn bản | T | Thêm và chỉnh sửa văn bản |
-| Hình ảnh | I | Nhập hình ảnh |
-| Hình | R | Vẽ hình chữ nhật |
-| QR Code | Q | Thêm mã QR |
+The printer path is:
 
-### Hành động
-- **Lưu**: Lưu thiết kế dưới dạng tệp JSON
-- **Tải**: Mở thiết kế được lưu trước đó
-- **In**: In nhãn trực tiếp từ trình duyệt
-- **Xóa**: Xóa phần tử được chọn hoặc toàn bộ
-- **Sao chép**: Nhân bản phần tử được chọn
-- **Sắp xếp**: Điều chỉnh thứ tự hiển thị các phần tử
+`Chrome → Web Serial → serial profile / Bluetooth RFCOMM → ZT410`
 
-## 📋 Yêu cầu
+Web Serial is only usable from a secure context such as HTTPS or localhost. The Connect button requests the serial port so the browser keeps the permission flow user initiated.
 
-- Trình duyệt hiện đại hỗ trợ:
-  - HTML5 Canvas
-  - File API
-  - JavaScript ES6+
+## ZT410 print mapping
 
-## 🚀 Cách sử dụng
+| DPI | dots/mm | 40 × 25 mm |
+|---|---:|---:|
+| 203 | 8 | 320 × 200 dots |
+| 300 | 12 | 480 × 300 dots |
 
-### Bước 1: Chọn công cụ
-Nhấp vào công cụ muốn sử dụng trên thanh bên trái hoặc dùng phím tắt.
+## Run locally
 
-### Bước 2: Tùy chỉnh thuộc tính
-- Chọn màu sắc
-- Điều chỉnh kích thước chữ (8-72px)
-- Thay đổi độ dày nét (1-10px)
-- Điều chỉnh độ mờ (0-100%)
+Serve the repository over localhost, for example with any static HTTP server, then open:
 
-### Bước 3: Thêm nội dung
-- **Văn bản**: Chọn công cụ, nhấp trên canvas, nhập văn bản
-- **Hình ảnh**: Chọn công cụ, nhấp để chọn file hình ảnh
-- **Hình dạng**: Chọn công cụ, nhấp trên canvas để tạo
-- **QR Code**: Chọn công cụ, nhập dữ liệu, thêm vào
+`http://localhost:<port>/v2/`
 
-### Bước 4: Chỉnh sửa
-- Chọn phần tử bằng công cụ "Chọn"
-- Kéo để di chuyển
-- Sử dụng các nút hành động để sao chép, xóa hoặc sắp xếp
+Do not use the GitHub `blob` page as the runtime.
 
-### Bước 5: Lưu/In
-- **Lưu**: Nhấp "Lưu" để tải về file JSON
-- **Tải**: Nhấp "Tải" để mở file đã lưu
-- **In**: Nhấp "In" để mở hộp thoại in trình duyệt
+## Hardware print validation
 
-## 📐 Thông số kỹ thuật
+Before production printing, validate at the target printer:
 
-- **Kích thước nhãn**: 40mm × 25mm
-- **Độ phân giải**: 226×141 pixels (8.5pt/mm)
-- **Số lượng nhãn**: 2 trên một hàng
-- **Định dạng lưu trữ**: JSON (chứa thông tin tất cả phần tử)
-- **Định dạng in**: HTML/CSS (tương thích với hầu hết các máy in)
+1. Text positioning and clipping
+2. Code128 readability
+3. QR readability
+4. UTF-8 / Vietnamese text
+5. 203 DPI
+6. 300 DPI
+7. Multiple copies
+8. Bluetooth disconnect / reconnect
 
-## 🔧 Cấu trúc tệp
+The UI status means the ZPL write completed; it does not by itself prove that media advanced or the label was physically printed.
 
-```
-ztlabel/
-├── index.html          # Giao diện chính
-├── css/
-│   └── styles.css      # Kiểu dáng
-├── js/
-│   ├── canvas.js       # Quản lý canvas
-│   └── app.js          # Ứng dụng chính
-└── README.md           # Tài liệu
-```
+## Security / privacy
 
-## 💾 Format dữ liệu lưu trữ
-
-Tệp được lưu dưới dạng JSON:
-
-```json
-{
-  "label1": [
-    {
-      "type": "text",
-      "x": 50,
-      "y": 50,
-      "text": "Mẫu văn bản",
-      "fontSize": 12,
-      "color": "#000000",
-      "opacity": 1
-    }
-  ],
-  "label2": [],
-  "timestamp": "2026-08-08T12:00:00.000Z"
-}
-```
-
-## 🖨️ In nhãn
-
-1. Thiết kế nhãn theo ý muốn
-2. Nhấp nút "In"
-3. Cấu hình máy in trong hộp thoại trình duyệt
-4. Nhấp "In" để in
-
-## 📝 Ghi chú
-
-- Tất cả dữ liệu được lưu trữ cục bộ trong trình duyệt
-- Không cần kết nối internet để sử dụng
-- Hỗ trợ các định dạng hình ảnh: PNG, JPG, GIF
-
-## 🛠️ Phát triển
-
-### Các tính năng sắp tới
-- [ ] Lịch sử hoàn tác/làm lại
-- [ ] Export PDF
-- [ ] Thư viện template
-- [ ] Ghép font chữ
-- [ ] Đồng bộ đám mây
-
-## 📄 Giấy phép
-
-MIT License
-
-## 👥 Đóng góp
-
-Bất kỳ đóng góp nào cũng được hoan nghênh!
-
----
-
-**Phiên bản**: 1.0.0
-**Cập nhật lần cuối**: 2026-08-08
+No printer MAC address or other device identifier is stored in the web UI. No server-side backend is required for the designer itself.
