@@ -180,7 +180,7 @@ let toastTimer = null;
 function uid(){ return globalThis.crypto?.randomUUID?.() || ('o-'+Date.now()+'-'+Math.random().toString(36).slice(2)); }
 function clone(v){ return JSON.parse(JSON.stringify(v)); }
 function dots(mm,dpi=state.label.dpi){ return Math.round(Number(mm||0) * (DOTS_PER_MM[dpi] || 8)); }
-function mm(v,min=0,max=200){ return Math.max(min,Math.min(max,Number.isFinite(+v)?+v:min)); }
+function mm(v,min=0,max=300){ return Math.max(min,Math.min(max,Number.isFinite(+v)?+v:min)); }
 function cleanData(v){ return String(v ?? '').replace(/[\^~]/g,' ').replace(/[\r\n]+/g,' '); }
 
 function snapshot(){ return JSON.stringify({label:state.label,selectedId:state.selectedId}); }
@@ -235,8 +235,8 @@ function normalizeObject(o){
 
 function normalizeLabel(raw){
   const l=raw?.label || raw;
-  const widthMm=mm(l?.widthMm,1,200);
-  const heightMm=mm(l?.heightMm,1,200);
+  const widthMm=mm(l?.widthMm,1,300);
+  const heightMm=mm(l?.heightMm,1,300);
   const dpi=Number(l?.dpi)===300?300:203;
   const objects=Array.isArray(l?.objects)?l.objects.map(normalizeObject):[];
   return {widthMm,heightMm,dpi,objects};
@@ -404,11 +404,11 @@ function renderProps(){
   field(grid,'H',o.h,'number','.1',i=>{o.h=mm(+i.value,0,state.label.heightMm);o.y=Math.min(o.y,Math.max(0,state.label.heightMm-o.h));},null);
   if(o.type==='text'){
     field(grid,'Text',o.text,'text',null,i=>{o.text=i.value;},null,true);
-    field(grid,'Font mm',o.fontSize,'number','.1',i=>{o.fontSize=Math.max(1,+i.value||1);},null);
+    field(grid,'Font mm',o.fontSize,'number','.1',i=>{const v=Number(i.value);o.fontSize=Math.max(1,Number.isFinite(v)?v:1);},null);
   }
   if(o.type==='barcode'){
     field(grid,'Data',o.data,'text',null,i=>{o.data=i.value;},null,true);
-    field(grid,'Module',o.moduleWidth,'number','1',i=>{o.moduleWidth=Math.max(1,Math.min(10,Math.round(+i.value||2)));},null);
+    field(grid,'Module',o.moduleWidth,'number','1',i=>{const v=Number(i.value);o.moduleWidth=Math.max(1,Math.min(10,Number.isFinite(v)?Math.round(v):2));},null);
     const wrap=document.createElement('div');wrap.className='field';
     const lab=document.createElement('label');lab.textContent='Human readable';
     const check=document.createElement('input');check.type='checkbox';check.checked=o.humanReadable;
@@ -418,10 +418,10 @@ function renderProps(){
   }
   if(o.type==='qr'){
     field(grid,'Data',o.data,'text',null,i=>{o.data=i.value;},null,true);
-    field(grid,'Magnification',o.magnification,'number','1',i=>{o.magnification=Math.max(1,Math.min(10,Math.round(+i.value||4)));},null);
+    field(grid,'Magnification',o.magnification,'number','1',i=>{const v=Number(i.value);o.magnification=Math.max(1,Math.min(10,Number.isFinite(v)?Math.round(v):4));},null);
   }
   if(o.type==='image'){
-    field(grid,'Threshold',o.threshold,'number','1',i=>{o.threshold=Math.max(0,Math.min(255,Math.round(+i.value||160)));},null);
+    field(grid,'Threshold',o.threshold,'number','1',i=>{const v=Number(i.value);o.threshold=Math.max(0,Math.min(255,Number.isFinite(v)?Math.round(v):160));},null);
   }
   if(o.type==='line'||o.type==='box'){
     field(grid,'Thickness',o.thickness,'number','.1',i=>{o.thickness=Math.max(.1,Math.min(5,+i.value||.5));},null);
@@ -489,8 +489,8 @@ function setPreset(value){
 
 function setLabelProp(kind,value){
   const before=snapshot();
-  if(kind==='width')state.label.widthMm=mm(value,1,200);
-  if(kind==='height')state.label.heightMm=mm(value,1,200);
+  if(kind==='width')state.label.widthMm=mm(value,1,300);
+  if(kind==='height')state.label.heightMm=mm(value,1,300);
   if(kind==='dpi')state.label.dpi=Number(value)===300?300:203;
   for(const o of state.label.objects){
     o.x=mm(o.x,0,Math.max(0,state.label.widthMm-o.w));
@@ -576,29 +576,6 @@ async function buildZpl(){
   return out+'^XZ\n';
 }
 async function zpl(){ return buildZpl(); }
-
-
-  const l=state.label,dpi=l.dpi;
-  let out='^XA^CI28^PW'+dots(l.widthMm,dpi)+'^LL'+dots(l.heightMm,dpi);
-  for(const o of l.objects){
-    const x=dots(o.x,dpi),y=dots(o.y,dpi);
-    if(o.type==='text'){
-      const fs=Math.max(8,dots(o.fontSize,dpi));
-      const bw=Math.max(1,dots(o.w,dpi));
-      const lines=Math.max(1,Math.floor((o.h*DOTS_PER_MM[dpi])/Math.max(1,fs)));
-      out+='^FO'+x+','+y+'^A0N,'+fs+','+fs+'^FB'+bw+','+lines+',0,L,0^FD'+cleanData(o.text)+'^FS';
-    }else if(o.type==='barcode'){
-      out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BCN,'+Math.max(8,dots(o.h,dpi))+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(o.data)+'^FS';
-    }else if(o.type==='qr'){
-      out+='^FO'+x+','+y+'^BQN,2,'+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(o.data)+'^FS';
-    }else if(o.type==='line'){
-      out+='^FO'+x+','+y+'^GB'+Math.max(1,dots(o.w,dpi))+','+Math.max(1,dots(o.h,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
-    }else if(o.type==='box'){
-      out+='^FO'+x+','+y+'^GB'+Math.max(1,dots(o.w,dpi))+','+Math.max(1,dots(o.h,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
-    }
-  }
-  return out+'^XZ\n';
-}
 
 async function showZpl(){ try{$('zplOutput').value=await zpl();$('zplModal').hidden=false;}catch(e){alert('Không tạo được ZPL: '+e.message);} }
 async function copyZpl(){ try{await navigator.clipboard.writeText(await zpl());showToast('Đã copy ZPL');}catch{await showZpl();showToast('Clipboard bị chặn; ZPL đã mở để copy thủ công.');} }
