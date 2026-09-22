@@ -1,12 +1,622 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111827"><title>ZT Label Designer V2</title><style>
-*{box-sizing:border-box}body{margin:0;background:#0b0f14;color:#f4f6f8;font:14px system-ui}header{padding:12px;background:#111827;position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;gap:8px;align-items:center}header small{display:block;color:#9aa5b1;font-size:11px}.bar,.row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}.bar{padding:9px;overflow:auto}.bar button,button{border:1px solid #39424e;background:#18202a;color:#fff;border-radius:9px;padding:9px 11px}button.primary{background:#1463ff;border-color:#1463ff}.card{margin:0 9px 9px;padding:9px;background:#121923;border:1px solid #273140;border-radius:10px}.pill{padding:6px 9px;background:#1b2531;border-radius:99px;font-size:12px}.work{display:grid;grid-template-columns:1fr 280px;gap:9px;padding:0 9px}.stage{min-height:480px;background:#151b23;border:1px solid #273140;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:18px}.label{position:relative;background:white;box-shadow:0 8px 25px #0008;flex:none}.obj{position:absolute;color:#111;touch-action:none;user-select:none;overflow:hidden;cursor:move}.sel{outline:2px solid #1463ff}.box{border:2px solid #111}.line{background:#111}.qr{border:2px solid #111;display:grid;place-items:center;font:10px monospace;background:repeating-conic-gradient(#111 0 25%,#fff 0 50%) 50%/12px 12px}.barcode{font-size:11px;text-align:center}.bars{height:75%;display:flex}.bars i{height:100%}.props{background:#121923;border:1px solid #273140;border-radius:10px;padding:10px}.props h3{margin:0 0 8px}.props label{display:block;color:#aeb8c4;font-size:12px;margin:6px 0}.props input{width:100%;padding:7px;background:#0b0f14;color:white;border:1px solid #39424e;border-radius:7px}.bottom{padding:9px;display:flex;gap:7px;position:sticky;bottom:0;background:#0b0f14}.bottom button{flex:1}.modal{position:fixed;inset:10%;background:#111827;border:1px solid #39424e;border-radius:10px;padding:12px;z-index:10}.modal textarea{width:100%;height:70%;background:#080c11;color:#fff;border:1px solid #39424e;border-radius:7px;font:12px monospace}@media(max-width:800px){.work{grid-template-columns:1fr}.props{min-height:120px}}
-</style></head><body>
-<header><div><b>ZT Label Designer V2</b><small>Zebra ZT410 · 40×25 mm · 203 DPI · ZPL</small></div><div class="row"><button id="new">New</button><button id="save">Save</button></div></header>
-<div class="bar"><button data-add="text">＋ Text</button><button data-add="barcode">＋ Barcode</button><button data-add="qr">＋ QR</button><button data-add="box">＋ Box</button><button id="connect" class="primary">🔵 Connect ZT410</button><button id="disconnect">Disconnect</button></div>
-<div class="card"><div class="row"><label>W <input id="w" type="number" value="40" step=".1"></label><label>H <input id="h" type="number" value="25" step=".1"></label><label>DPI <select id="dpi"><option>203</option><option>300</option></select></label><span id="support" class="pill"></span><span id="status" class="pill">Disconnected</span></div></div>
-<div class="work"><div class="stage"><div id="label" class="label"></div></div><aside class="props"><h3>Thuộc tính</h3><div id="p">Chạm đối tượng để chỉnh sửa.</div></aside></div>
-<div class="bottom"><button id="zpl">Preview ZPL</button><button id="copy">Copy ZPL</button><button id="print" class="primary">🖨 In</button></div>
-<div id="modal" class="modal" hidden><h3>ZPL</h3><textarea id="out"></textarea><div class="row"><button id="close">Đóng</button></div></div>
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<meta name="description" content="ZT Label Designer V2 for Zebra ZT410">
+<title>ZT Label Designer V2</title>
+<style>
+:root{--bg:#0b0f14;--panel:#121923;--panel2:#18202a;--border:#2a3645;--text:#f4f6f8;--muted:#9aa5b1;--primary:#1463ff;--ok:#18b77a;--danger:#e05252;--paper:#fff;--ink:#111}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit}
+button{border:1px solid #3a4757;background:var(--panel2);color:#fff;border-radius:8px;padding:8px 10px;cursor:pointer}
+button:hover{filter:brightness(1.08)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--primary);border-color:var(--primary)}
+button.danger{background:#3a191d;border-color:#6a2a32;color:#ffdfe2}
+header{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 12px;background:#111827;border-bottom:1px solid var(--border)}
+header b{font-size:16px}
+header small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.toolbar,.bottom{display:flex;gap:7px;flex-wrap:wrap;align-items:center;padding:8px}
+.toolbar{position:sticky;top:58px;z-index:15;background:rgba(11,15,20,.96);backdrop-filter:blur(8px);border-bottom:1px solid #202a36;overflow:auto}
+.card{margin:8px 9px;padding:9px;background:var(--panel);border:1px solid var(--border);border-radius:10px}
+.row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.card label,.props label{color:var(--muted);font-size:12px}
+.card input,.card select,.props input,.props select{margin-left:4px;width:78px;padding:6px 7px;border:1px solid #3a4757;border-radius:7px;background:#0d131a;color:#fff}
+.props input[type=text]{width:100%;margin-left:0}
+.pill{padding:5px 8px;border-radius:999px;background:#1b2531;font-size:11px}
+.pill.ok{background:#113c2c;color:#98f1ca}.pill.bad{background:#421b20;color:#ffb4bb}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:9px;padding:0 9px}
+.stage{min-height:520px;background:#151b23;border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:22px}
+.label{position:relative;background:#fff;box-shadow:0 10px 35px #0009;flex:none;touch-action:none}
+.obj{position:absolute;color:var(--ink);user-select:none;overflow:hidden;touch-action:none}
+.obj.selected{outline:2px solid var(--primary);outline-offset:1px;z-index:10}
+.obj.text{white-space:pre-wrap;line-height:1.1;word-break:break-word}
+.obj.box{border:2px solid var(--ink)}
+.obj.line{background:var(--ink)}
+.obj.barcode{font-size:9px;text-align:center;display:flex;flex-direction:column;justify-content:flex-start}
+.barcode .bars{display:flex;align-items:stretch;justify-content:center;gap:0;min-height:55%}
+.barcode .bars i{display:block;height:100%}
+.barcode .human{margin-top:2px;white-space:nowrap;overflow:hidden}
+.obj.qr{display:grid;place-items:center;border:1px solid #111;font:9px/1 monospace;background-color:#fff;background-image:
+linear-gradient(45deg,#111 25%,transparent 25%,transparent 75%,#111 75%),
+linear-gradient(45deg,#111 25%,transparent 25%,transparent 75%,#111 75%);
+background-size:8px 8px;background-position:0 0,4px 4px}
+.props{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;min-height:240px}
+.props h3{margin:0 0 9px;font-size:14px}
+.props .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.props .field{display:flex;flex-direction:column;gap:4px}
+.props .wide{grid-column:1/-1}
+.props .actions{display:flex;gap:7px;margin-top:10px}
+.props .actions button{flex:1}
+.help{color:var(--muted);font-size:11px;line-height:1.45;margin-top:8px}
+.status{display:flex;gap:7px;align-items:center}
+.bottom{position:sticky;bottom:0;z-index:20;background:rgba(11,15,20,.96);backdrop-filter:blur(8px);border-top:1px solid #202a36}
+.bottom button{flex:1;min-width:110px}
+.modal{position:fixed;inset:5%;z-index:50;background:#111827;border:1px solid #3a4757;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 20px 80px #000b}
+.modal[hidden]{display:none}
+.modal textarea{flex:1;min-height:260px;resize:vertical;background:#080c11;color:#fff;border:1px solid #3a4757;border-radius:8px;padding:9px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace}
+.toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:100;max-width:90vw;padding:9px 12px;border-radius:8px;background:#202a36;border:1px solid #3a4757;display:none}
+.toast.show{display:block}
+.file-input{display:none}
+@media(max-width:820px){
+  .work{grid-template-columns:1fr}
+  .props{order:2}
+  .stage{min-height:390px}
+}
+@media(max-width:520px){
+  header{align-items:flex-start}
+  header .row{justify-content:flex-end}
+  .toolbar button{padding:7px 9px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <b>ZT Label Designer V2</b>
+    <small>Zebra ZT410 · ZPL · 40×25 mm · 203/300 DPI</small>
+  </div>
+  <div class="row">
+    <button id="btnNew">New</button>
+    <button id="btnUndo" disabled>↶ Undo</button>
+    <button id="btnRedo" disabled>↷ Redo</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button data-add="text">＋ Text</button>
+  <button data-add="barcode">＋ Code128</button>
+  <button data-add="qr">＋ QR</button>
+  <button data-add="line">＋ Line</button>
+  <button data-add="box">＋ Box</button>
+  <button id="btnDuplicate">⧉ Duplicate</button>
+  <button id="btnDelete">Delete</button>
+  <button id="btnClear">Clear</button>
+  <button id="btnConnect" class="primary">🔵 Connect</button>
+  <button id="btnDisconnect">Disconnect</button>
+  <span class="status"><span id="support" class="pill"></span><span id="status" class="pill">Disconnected</span></span>
+</div>
+
+<div class="card">
+  <div class="row">
+    <label>Label W <input id="labelW" type="number" min="1" max="200" step=".1"></label>
+    <label>Label H <input id="labelH" type="number" min="1" max="200" step=".1"></label>
+    <label>DPI
+      <select id="dpi"><option value="203">203</option><option value="300">300</option></select>
+    </label>
+    <label>Baud
+      <select id="baud"><option>115200</option><option>57600</option><option>38400</option><option>19200</option><option>9600</option></select>
+    </label>
+    <label>Copies <input id="copies" type="number" min="1" max="99" step="1" value="1"></label>
+    <button id="btnLoad">Load</button>
+    <button id="btnSave">Save As</button>
+    <button id="btnExport">Export JSON</button>
+    <button id="btnImport">Import JSON</button>
+    <input id="fileImport" class="file-input" type="file" accept=".json,application/json">
+  </div>
+</div>
+
+<div class="work">
+  <div class="stage" id="stage"><div id="label" class="label"></div></div>
+  <aside class="props">
+    <h3>Thuộc tính</h3>
+    <div id="propsBody">Chọn một đối tượng.</div>
+    <div class="help">Đơn vị X/Y/W/H là mm. Kéo bằng chuột hoặc cảm ứng. Mũi tên để dịch chuyển 0,1 mm; Shift + mũi tên = 1 mm.</div>
+  </aside>
+</div>
+
+<div class="bottom">
+  <button id="btnZpl">Preview ZPL</button>
+  <button id="btnCopy">Copy ZPL</button>
+  <button id="btnPrint" class="primary" disabled>🖨 In</button>
+</div>
+
+<div id="zplModal" class="modal" hidden>
+  <b>ZPL Preview</b>
+  <textarea id="zplOutput" spellcheck="false"></textarea>
+  <div class="row"><button id="btnCloseZpl">Close</button></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
 <script>
-const $=x=>document.getElementById(x);let L={w:40,h:25,dpi:203,o:[]},sel=null,drag=null,port=null,writer=null;const uid=()=>Math.random().toString(36).slice(2)+Date.now();const D={text:{t:'text',x:5,y:4,w:25,h:6,v:'PRODUCT ABC',fs:4},barcode:{t:'barcode',x:5,y:11,w:30,h:9,v:'123456789'},qr:{t:'qr',x:30,y:11,w:8,h:8,v:'ABC123'},box:{t:'box',x:3,y:2,w:34,h:21}};function dots(mm){return Math.round(mm*L.dpi/25.4)}function zpl(){let s='^XA^PW'+dots(L.w)+'^LL'+dots(L.h);for(const o of L.o){const x=dots(o.x),y=dots(o.y);if(o.t==='text')s+='^FO'+x+','+y+'^A0N,'+Math.max(8,dots(o.fs||4))+','+Math.max(8,dots(o.fs||4))+'^FD'+String(o.v||'').replace(/[\^~]/g,' ')+'^FS';if(o.t==='barcode')s+='^FO'+x+','+y+'^BY2^BCN,'+dots(o.h||9)+',Y,N,N^FD'+String(o.v||'').replace(/[\^~]/g,' ')+'^FS';if(o.t==='qr')s+='^FO'+x+','+y+'^BQN,2,4^FDLA'+String(o.v||'').replace(/[\^~]/g,' ')+'^FS';if(o.t==='box')s+='^FO'+x+','+y+'^GB'+dots(o.w)+','+dots(o.h)+',2^FS'}return s+'^XZ'}function save(){localStorage.setItem('zt-v2',JSON.stringify(L))}function render(){L.w=+L.w||40;L.h=+L.h||25;L.dpi=+L.dpi||203;$('w').value=L.w;$('h').value=L.h;$('dpi').value=L.dpi;const s=Math.max(5,Math.min(16,(innerWidth-55)/L.w));$('label').style.width=L.w*s+'px';$('label').style.height=L.h*s+'px';$('label').innerHTML='';for(const o of L.o){const e=document.createElement('div');e.className='obj '+(o.t==='box'?'box':'')+(o.t==='qr'?' qr':'')+(o.t==='barcode'?' barcode':'')+(o.t==='line'?' line':'')+(o.id===sel?' sel':'');e.style.left=o.x*s+'px';e.style.top=o.y*s+'px';e.style.width=o.w*s+'px';e.style.height=o.h*s+'px';if(o.t==='text'){e.textContent=o.v;e.style.fontSize=Math.max(6,o.fs*s)+'px'}else if(o.t==='barcode'){e.innerHTML='<div class="bars">'+Array.from({length:50},(_,i)=>'<i style="width:'+(i%3?'2px':'1px')+';background:'+(i%2?'#111':'transparent')+'"></i>').join('')+'</div>'+o.v}else if(o.t==='qr')e.textContent='QR\\n'+o.v;e.onpointerdown=ev=>{sel=o.id;drag={sx:ev.clientX,sy:ev.clientY,x:o.x,y:o.y,id:o.id};e.setPointerCapture?.(ev.pointerId);render()};$('label').appendChild(e)}props()}function props(){const o=L.o.find(x=>x.id===sel),p=$('p');if(!o){p.textContent='Chạm đối tượng để chỉnh sửa.';return}p.innerHTML='';['x','y','w','h'].forEach(k=>{const l=document.createElement('label');l.textContent=k.toUpperCase();const i=document.createElement('input');i.type='number';i.step='.1';i.value=o[k];i.oninput=()=>{o[k]=+i.value;save();render()};l.append(i);p.append(l)});if('v'in o){const l=document.createElement('label');l.textContent='Data/Text';const i=document.createElement('input');i.value=o.v;i.oninput=()=>{o.v=i.value;save();render()};l.append(i);p.append(l)}const b=document.createElement('button');b.textContent='Delete';b.onclick=()=>{L.o=L.o.filter(x=>x.id!==o.id);sel=null;save();render()};p.append(b)}$('label').onpointermove=e=>{if(!drag)return;const s=Math.max(5,Math.min(16,(innerWidth-55)/L.w)),o=L.o.find(x=>x.id===drag.id);if(o){o.x=Math.max(0,drag.x+(e.clientX-drag.sx)/s);o.y=Math.max(0,drag.y+(e.clientY-drag.sy)/s);render()}};$('label').onpointerup=()=>{drag=null;save()};document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const o={...D[b.dataset.add],id:uid()};L.o.push(o);sel=o.id;save();render()});$('w').oninput=e=>{L.w=+e.target.value;save();render()};$('h').oninput=e=>{L.h=+e.target.value;save();render()};$('dpi').onchange=e=>{L.dpi=+e.target.value;save();render()};$('new').onclick=()=>{L={w:40,h:25,dpi:203,o:[]};sel=null;save();render()};$('save').onclick=()=>{const n=prompt('Tên template','ZT410-40x25');if(n)localStorage.setItem('zt-template-'+n,JSON.stringify(L))};$('zpl').onclick=()=>{$('out').value=zpl();$('modal').hidden=false};$('close').onclick=()=>{$('modal').hidden=true};$('copy').onclick=()=>navigator.clipboard.writeText(zpl());$('connect').onclick=async()=>{try{if(!('serial'in navigator))throw Error('Chrome không hỗ trợ Web Serial trên thiết bị này.');port=await navigator.serial.requestPort();await port.open({baudRate:115200});$('status').textContent='Connected'}catch(e){alert(e.message)}};$('disconnect').onclick=async()=>{if(port){try{await port.close()}catch{}port=null}$('status').textContent='Disconnected'};$('print').onclick=async()=>{try{if(!port)throw Error('Chưa kết nối ZT410');writer=port.writable.getWriter();await writer.write(new TextEncoder().encode(zpl()));writer.releaseLock();writer=null;$('status').textContent='Print command sent'}catch(e){alert(e.message)}};$('support').textContent='Web Serial: '+(('serial'in navigator)?'supported':'unsupported');try{const x=JSON.parse(localStorage.getItem('zt-v2'));if(x)L=x}catch{}if(!L.o.length)L.o=[{...D.text,id:uid()},{...D.barcode,id:uid()}];render();
-</script></body></html>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const STORE_CURRENT = 'ztlabel:v2:current';
+const STORE_PREFIX = 'ztlabel:v2:template:';
+const DOTS_PER_MM = {203: 8, 300: 12};
+
+const DEFAULTS = {
+  text:    {type:'text',    x:5,  y:4,  w:25, h:6,  text:'PRODUCT ABC', fontSize:4},
+  barcode: {type:'barcode', x:5,  y:12, w:30, h:9, data:'123456789', moduleWidth:2, humanReadable:true},
+  qr:      {type:'qr',      x:30, y:11, w:8,  h:8,  data:'ABC123', magnification:4},
+  line:    {type:'line',    x:4,  y:21, w:32, h:.5, thickness:.5},
+  box:     {type:'box',     x:3,  y:2,  w:34, h:21, thickness:.5}
+};
+
+const state = {label:{widthMm:40,heightMm:25,dpi:203,objects:[]}, selectedId:null};
+let port = null;
+let writer = null;
+let drag = null;
+let history = [];
+let future = [];
+let propBefore = null;
+let toastTimer = null;
+
+function uid(){ return crypto?.randomUUID?.() || ('o-'+Date.now()+'-'+Math.random().toString(36).slice(2)); }
+function clone(v){ return JSON.parse(JSON.stringify(v)); }
+function dots(mm,dpi=state.label.dpi){ return Math.round(Number(mm||0) * (DOTS_PER_MM[dpi] || 8)); }
+function mm(v,min=0,max=200){ return Math.max(min,Math.min(max,Number.isFinite(+v)?+v:min)); }
+function cleanData(v){ return String(v ?? '').replace(/[\^~]/g,' ').replace(/[\r\n]+/g,' '); }
+
+function snapshot(){ return JSON.stringify({label:state.label,selectedId:state.selectedId}); }
+function restoreSnapshot(s){
+  const x=JSON.parse(s);
+  state.label=x.label;
+  state.selectedId=x.selectedId && state.label.objects.some(o=>o.id===x.selectedId) ? x.selectedId : null;
+  saveCurrent();
+  render();
+  updateHistoryButtons();
+}
+function checkpoint(){
+  history.push(snapshot());
+  if(history.length>80) history.shift();
+  future=[];
+  updateHistoryButtons();
+}
+function undo(){
+  if(!history.length) return;
+  future.push(snapshot());
+  const prev=history.pop();
+  restoreSnapshot(prev);
+}
+function redo(){
+  if(!future.length) return;
+  history.push(snapshot());
+  const next=future.pop();
+  restoreSnapshot(next);
+}
+function updateHistoryButtons(){ $('btnUndo').disabled=!history.length; $('btnRedo').disabled=!future.length; }
+
+function normalizeObject(o){
+  const type=['text','barcode','qr','line','box'].includes(o?.type)?o.type:'text';
+  const base=clone(DEFAULTS[type]);
+  const x=Object.assign(base,o||{});
+  x.id=String(o?.id || uid());
+  x.x=mm(x.x,0,state.label.widthMm);
+  x.y=mm(x.y,0,state.label.heightMm);
+  x.w=mm(x.w,0,state.label.widthMm);
+  x.h=mm(x.h,0,state.label.heightMm);
+  x.x=Math.min(x.x,Math.max(0,state.label.widthMm-x.w));
+  x.y=Math.min(x.y,Math.max(0,state.label.heightMm-x.h));
+  if(type==='text'){x.text=String(x.text??'');x.fontSize=Math.max(1,Math.min(30,+x.fontSize||4));}
+  if(type==='barcode'){x.data=String(x.data??'');x.moduleWidth=Math.max(1,Math.min(10,Math.round(+x.moduleWidth||2)));x.humanReadable=x.humanReadable!==false;}
+  if(type==='qr'){x.data=String(x.data??'');x.magnification=Math.max(1,Math.min(10,Math.round(+x.magnification||4)));}
+  if(type==='line'||type==='box') x.thickness=Math.max(.1,Math.min(5,+x.thickness||.5));
+  return x;
+}
+
+function normalizeLabel(raw){
+  const l=raw?.label || raw;
+  const widthMm=mm(l?.widthMm,1,200);
+  const heightMm=mm(l?.heightMm,1,200);
+  const dpi=Number(l?.dpi)===300?300:203;
+  const objects=Array.isArray(l?.objects)?l.objects.map(normalizeObject):[];
+  return {widthMm,heightMm,dpi,objects};
+}
+
+function setNewLabel(){
+  checkpoint();
+  state.label={widthMm:40,heightMm:25,dpi:203,objects:[normalizeObject({...DEFAULTS.text}),normalizeObject({...DEFAULTS.barcode})]};
+  state.selectedId=null;
+  saveCurrent();
+  render();
+}
+
+function saveCurrent(){ localStorage.setItem(STORE_CURRENT,JSON.stringify(state.label)); }
+
+function loadCurrent(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(STORE_CURRENT)||'null');
+    if(raw){state.label=normalizeLabel(raw);}
+    else{state.label=normalizeLabel({widthMm:40,heightMm:25,dpi:203,objects:[DEFAULTS.text,DEFAULTS.barcode]});}
+  }catch{state.label=normalizeLabel({widthMm:40,heightMm:25,dpi:203,objects:[DEFAULTS.text,DEFAULTS.barcode]});}
+}
+
+function showToast(message){
+  $('toast').textContent=message;
+  $('toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2200);
+}
+
+function labelScale(){
+  const r=$('stage').getBoundingClientRect();
+  const maxW=Math.max(120,r.width-44);
+  const maxH=Math.max(160,r.height-44);
+  return Math.max(2,Math.min(22,maxW/state.label.widthMm,maxH/state.label.heightMm));
+}
+
+function styleObject(el,o,s){
+  el.style.left=(o.x*s)+'px';
+  el.style.top=(o.y*s)+'px';
+  el.style.width=Math.max(1,o.w*s)+'px';
+  el.style.height=Math.max(1,o.h*s)+'px';
+  if(o.type==='text') el.style.fontSize=Math.max(6,o.fontSize*s)+'px';
+  if(o.type==='line') el.style.height=Math.max(1,o.thickness*s*.45)+'px';
+  if(o.type==='box') el.style.borderWidth=Math.max(1,o.thickness*s)+'px';
+}
+
+function drawBarcode(el,o){
+  el.textContent='';
+  const bars=document.createElement('div');
+  bars.className='bars';
+  const pattern=Array.from(o.data||'123456789').reduce((a,c)=>a+String((c.charCodeAt(0)%5)+1),'');
+  for(let i=0;i<Math.max(30,pattern.length*4);i++){
+    const b=document.createElement('i');
+    b.style.width=((i%4===0)?'1px':(i%3===0?'2px':'3px'));
+    b.style.background=(i%2?'#111':'transparent');
+    bars.appendChild(b);
+  }
+  el.appendChild(bars);
+  if(o.humanReadable){
+    const human=document.createElement('div'); human.className='human'; human.textContent=o.data; el.appendChild(human);
+  }
+}
+
+function createObjectElement(o,s){
+  const el=document.createElement('div');
+  el.className='obj '+o.type+(o.id===state.selectedId?' selected':'');
+  styleObject(el,o,s);
+  if(o.type==='text') el.textContent=o.text;
+  else if(o.type==='barcode') drawBarcode(el,o);
+  else if(o.type==='qr') el.textContent='QR\\n'+o.data;
+  else if(o.type==='line'){}
+  else if(o.type==='box'){}
+  el.addEventListener('pointerdown',e=>beginDrag(e,o.id,el));
+  return el;
+}
+
+function render(){
+  const l=state.label;
+  $('labelW').value=l.widthMm;
+  $('labelH').value=l.heightMm;
+  $('dpi').value=String(l.dpi);
+  const s=labelScale();
+  $('label').style.width=(l.widthMm*s)+'px';
+  $('label').style.height=(l.heightMm*s)+'px';
+  $('label').replaceChildren(...l.objects.map(o=>createObjectElement(o,s)));
+  renderProps();
+  updateConnectionUI();
+  updateHistoryButtons();
+}
+
+function selected(){ return state.label.objects.find(o=>o.id===state.selectedId)||null; }
+
+function beginDrag(e,id,el){
+  e.preventDefault();
+  state.selectedId=id;
+  const o=selected();
+  if(!o) return;
+  const before=snapshot();
+  drag={id,el,startX:e.clientX,startY:e.clientY,x:o.x,y:o.y,before,moved:false};
+  el.setPointerCapture?.(e.pointerId);
+  el.classList.add('selected');
+}
+
+function moveDrag(e){
+  if(!drag) return;
+  const s=labelScale(),o=state.label.objects.find(x=>x.id===drag.id);
+  if(!o) return;
+  const dx=(e.clientX-drag.startX)/s,dy=(e.clientY-drag.startY)/s;
+  if(Math.abs(dx)+Math.abs(dy)>.02) drag.moved=true;
+  o.x=mm(drag.x+dx,0,Math.max(0,state.label.widthMm-o.w));
+  o.y=mm(drag.y+dy,0,Math.max(0,state.label.heightMm-o.h));
+  styleObject(drag.el,o,s);
+  renderProps();
+}
+
+function endDrag(){
+  if(!drag) return;
+  if(drag.moved){history.push(drag.before);if(history.length>80)history.shift();future=[];saveCurrent();}
+  drag=null;
+  render();
+}
+
+$('label').addEventListener('pointermove',moveDrag);
+$('label').addEventListener('pointerup',endDrag);
+$('label').addEventListener('pointercancel',endDrag);
+$('label').addEventListener('click',e=>{
+  if(e.target===$('label')){state.selectedId=null;render();}
+});
+
+function field(parent,labelText,value,type,step,onInput,onChange,wide=false){
+  const wrap=document.createElement('div'); wrap.className='field'+(wide?' wide':'');
+  const lab=document.createElement('label'); lab.textContent=labelText;
+  const input=document.createElement('input'); input.type=type; input.step=step||'any'; input.value=value;
+  input.addEventListener('focus',()=>{if(propBefore===null)propBefore=snapshot();});
+  input.addEventListener('input',()=>onInput(input));
+  input.addEventListener('change',()=>{if(propBefore!==null){history.push(propBefore);if(history.length>80)history.shift();future=[];propBefore=null;}saveCurrent();render();});
+  wrap.append(lab,input); parent.append(wrap); return input;
+}
+
+function renderProps(){
+  const body=$('propsBody'); body.replaceChildren();
+  const o=selected();
+  if(!o){body.textContent='Chọn một đối tượng.';return;}
+  const grid=document.createElement('div');grid.className='grid';
+  field(grid,'X',o.x,'number','.1',i=>{o.x=mm(+i.value,0,Math.max(0,state.label.widthMm-o.w));},null);
+  field(grid,'Y',o.y,'number','.1',i=>{o.y=mm(+i.value,0,Math.max(0,state.label.heightMm-o.h));},null);
+  field(grid,'W',o.w,'number','.1',i=>{o.w=mm(+i.value,0,state.label.widthMm);o.x=Math.min(o.x,Math.max(0,state.label.widthMm-o.w));},null);
+  field(grid,'H',o.h,'number','.1',i=>{o.h=mm(+i.value,0,state.label.heightMm);o.y=Math.min(o.y,Math.max(0,state.label.heightMm-o.h));},null);
+  if(o.type==='text'){
+    field(grid,'Text',o.text,'text',null,i=>{o.text=i.value;},null,true);
+    field(grid,'Font mm',o.fontSize,'number','.1',i=>{o.fontSize=Math.max(1,+i.value||1);},null);
+  }
+  if(o.type==='barcode'){
+    field(grid,'Data',o.data,'text',null,i=>{o.data=i.value;},null,true);
+    field(grid,'Module',o.moduleWidth,'number','1',i=>{o.moduleWidth=Math.max(1,Math.min(10,Math.round(+i.value||2)));},null);
+    const wrap=document.createElement('div');wrap.className='field';
+    const lab=document.createElement('label');lab.textContent='Human readable';
+    const check=document.createElement('input');check.type='checkbox';check.checked=o.humanReadable;
+    check.addEventListener('focus',()=>{propBefore=snapshot();});
+    check.addEventListener('change',()=>{o.humanReadable=check.checked;history.push(propBefore||snapshot());propBefore=null;future=[];saveCurrent();render();});
+    wrap.append(lab,check);grid.append(wrap);
+  }
+  if(o.type==='qr'){
+    field(grid,'Data',o.data,'text',null,i=>{o.data=i.value;},null,true);
+    field(grid,'Magnification',o.magnification,'number','1',i=>{o.magnification=Math.max(1,Math.min(10,Math.round(+i.value||4)));},null);
+  }
+  if(o.type==='line'||o.type==='box'){
+    field(grid,'Thickness',o.thickness,'number','.1',i=>{o.thickness=Math.max(.1,Math.min(5,+i.value||.5));},null);
+  }
+  body.appendChild(grid);
+  const actions=document.createElement('div');actions.className='actions';
+  const dup=document.createElement('button');dup.textContent='Duplicate';dup.onclick=()=>duplicateSelected();
+  const del=document.createElement('button');del.textContent='Delete';del.className='danger';del.onclick=()=>deleteSelected();
+  actions.append(dup,del);body.appendChild(actions);
+}
+
+function add(type){
+  checkpoint();
+  const base=clone(DEFAULTS[type]);
+  base.id=uid();
+  base.x=Math.min(base.x,Math.max(0,state.label.widthMm-base.w));
+  base.y=Math.min(base.y,Math.max(0,state.label.heightMm-base.h));
+  state.label.objects.push(normalizeObject(base));
+  state.selectedId=base.id;
+  saveCurrent();render();
+}
+
+function deleteSelected(){
+  const o=selected();if(!o)return;
+  checkpoint();
+  state.label.objects=state.label.objects.filter(x=>x.id!==o.id);
+  state.selectedId=null;saveCurrent();render();
+}
+
+function duplicateSelected(){
+  const o=selected();if(!o)return;
+  checkpoint();
+  const c=clone(o);c.id=uid();c.x=Math.min(c.x+2,Math.max(0,state.label.widthMm-c.w));c.y=Math.min(c.y+2,Math.max(0,state.label.heightMm-c.h));
+  state.label.objects.push(c);state.selectedId=c.id;saveCurrent();render();
+}
+
+function clearAll(){
+  if(!state.label.objects.length)return;
+  if(!confirm('Xóa tất cả đối tượng trên nhãn?'))return;
+  checkpoint();state.label.objects=[];state.selectedId=null;saveCurrent();render();
+}
+
+function setLabelProp(kind,value){
+  const before=snapshot();
+  if(kind==='width')state.label.widthMm=mm(value,1,200);
+  if(kind==='height')state.label.heightMm=mm(value,1,200);
+  if(kind==='dpi')state.label.dpi=Number(value)===300?300:203;
+  for(const o of state.label.objects){
+    o.x=mm(o.x,0,Math.max(0,state.label.widthMm-o.w));
+    o.y=mm(o.y,0,Math.max(0,state.label.heightMm-o.h));
+  }
+  if(snapshot()!==before){history.push(before);if(history.length>80)history.shift();future=[];}
+  saveCurrent();render();
+}
+
+function zpl(){
+  const l=state.label,dpi=l.dpi;
+  let out='^XA^CI28^PW'+dots(l.widthMm,dpi)+'^LL'+dots(l.heightMm,dpi);
+  for(const o of l.objects){
+    const x=dots(o.x,dpi),y=dots(o.y,dpi);
+    if(o.type==='text'){
+      const fs=Math.max(8,dots(o.fontSize,dpi));
+      const bw=Math.max(1,dots(o.w,dpi));
+      const lines=Math.max(1,Math.floor((o.h*DOTS_PER_MM[dpi])/Math.max(1,fs)));
+      out+='^FO'+x+','+y+'^A0N,'+fs+','+fs+'^FB'+bw+','+lines+',0,L,0^FD'+cleanData(o.text)+'^FS';
+    }else if(o.type==='barcode'){
+      out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BCN,'+Math.max(8,dots(o.h,dpi))+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(o.data)+'^FS';
+    }else if(o.type==='qr'){
+      out+='^FO'+x+','+y+'^BQN,2,'+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(o.data)+'^FS';
+    }else if(o.type==='line'){
+      out+='^FO'+x+','+y+'^GB'+Math.max(1,dots(o.w,dpi))+','+Math.max(1,dots(o.h,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
+    }else if(o.type==='box'){
+      out+='^FO'+x+','+y+'^GB'+Math.max(1,dots(o.w,dpi))+','+Math.max(1,dots(o.h,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
+    }
+  }
+  return out+'^XZ\n';
+}
+
+function showZpl(){ $('zplOutput').value=zpl();$('zplModal').hidden=false; }
+async function copyZpl(){ try{await navigator.clipboard.writeText(zpl());showToast('Đã copy ZPL');}catch{showZpl();showToast('Clipboard bị chặn; ZPL đã mở để copy thủ công.');} }
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({version:2,label:state.label},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='zt410-label.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function importJSON(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const raw=JSON.parse(reader.result);
+      checkpoint();
+      state.label=normalizeLabel(raw);
+      state.selectedId=null;
+      saveCurrent();render();showToast('Đã import template');
+    }catch(e){alert('JSON không hợp lệ: '+e.message);}
+  };
+  reader.readAsText(file);
+}
+
+function saveAs(){
+  const name=prompt('Tên template:','ZT410-40x25');
+  if(!name)return;
+  localStorage.setItem(STORE_PREFIX+name.trim(),JSON.stringify(state.label));
+  showToast('Đã lưu template: '+name.trim());
+}
+
+function loadTemplate(){
+  const names=Object.keys(localStorage).filter(k=>k.startsWith(STORE_PREFIX)).map(k=>k.slice(STORE_PREFIX.length));
+  const name=prompt('Tên template để tải:\n'+(names.length?names.join(', '):'(chưa có template)'),'ZT410-40x25');
+  if(!name)return;
+  const raw=localStorage.getItem(STORE_PREFIX+name.trim());
+  if(!raw){alert('Không tìm thấy template.');return;}
+  checkpoint();state.label=normalizeLabel(JSON.parse(raw));state.selectedId=null;saveCurrent();render();showToast('Đã tải '+name.trim());
+}
+
+function updateSupportUI(){
+  const ok=('serial' in navigator)&&window.isSecureContext;
+  $('support').textContent= ok ? 'Web Serial OK' : (('serial' in navigator)?'Cần HTTPS/localhost':'Web Serial N/A');
+  $('support').className='pill '+(ok?'ok':'bad');
+  $('btnConnect').disabled=!ok || !!port;
+}
+
+function updateConnectionUI(message){
+  updateSupportUI();
+  const connected=!!port;
+  $('status').textContent=message || (connected?'Connected':'Disconnected');
+  $('status').className='pill '+(connected?'ok':'');
+  $('btnDisconnect').disabled=!connected;
+  $('btnPrint').disabled=!connected;
+}
+
+async function connectPrinter(){
+  if(!('serial' in navigator)){alert('Thiết bị/trình duyệt không hỗ trợ Web Serial.');return;}
+  if(!window.isSecureContext){alert('Web Serial cần HTTPS hoặc localhost.');return;}
+  try{
+    updateConnectionUI('Connecting…');
+    port=await navigator.serial.requestPort();
+    await port.open({baudRate:Number($('baud').value)||115200});
+    updateConnectionUI('Connected');
+    try{showToast('Đã kết nối cổng serial');}catch{}
+  }catch(e){
+    port=null;
+    updateConnectionUI('Disconnected');
+    if(e?.name!=='NotFoundError')alert('Kết nối thất bại: '+(e?.message||e));
+  }
+}
+
+async function disconnectPrinter(){
+  const p=port;
+  port=null;
+  try{ if(writer){writer.releaseLock();writer=null;} }catch{}
+  try{ if(p)await p.close(); }catch{}
+  updateConnectionUI('Disconnected');
+}
+
+async function printLabel(){
+  if(!port){alert('Chưa kết nối ZT410.');return;}
+  const copies=Math.max(1,Math.min(99,Math.round(Number($('copies').value)||1)));
+  if(!port.writable){alert('Cổng không writable. Hãy kết nối lại.');return;}
+  const payload=new TextEncoder().encode(zpl());
+  writer=port.writable.getWriter();
+  try{
+    updateConnectionUI('Printing…');
+    for(let i=0;i<copies;i++){
+      await writer.write(payload);
+      if(i<copies-1)await new Promise(r=>setTimeout(r,30));
+    }
+    updateConnectionUI('Print sent ×'+copies);
+    showToast('Đã gửi '+copies+' lệnh in');
+  }catch(e){
+    updateConnectionUI('Print error');
+    alert('Lỗi gửi ZPL: '+(e?.message||e));
+  }finally{
+    try{writer.releaseLock();}catch{}
+    writer=null;
+  }
+}
+
+function serialEventHandlers(){
+  if(!('serial' in navigator))return;
+  navigator.serial.addEventListener('disconnect',e=>{
+    if(e.target===port){port=null;writer=null;updateConnectionUI('Printer disconnected');showToast('ZT410 đã ngắt kết nối');}
+  });
+}
+
+document.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>add(b.dataset.add)));
+$('btnDelete').onclick=deleteSelected;
+$('btnDuplicate').onclick=duplicateSelected;
+$('btnClear').onclick=clearAll;
+$('btnNew').onclick=setNewLabel;
+$('btnUndo').onclick=undo;
+$('btnRedo').onclick=redo;
+$('btnZpl').onclick=showZpl;
+$('btnCopy').onclick=copyZpl;
+$('btnPrint').onclick=printLabel;
+$('btnConnect').onclick=connectPrinter;
+$('btnDisconnect').onclick=disconnectPrinter;
+$('btnSave').onclick=saveAs;
+$('btnLoad').onclick=loadTemplate;
+$('btnExport').onclick=exportJSON;
+$('btnImport').onclick=()=>$('fileImport').click();
+$('fileImport').onchange=e=>{const f=e.target.files?.[0];if(f)importJSON(f);e.target.value='';};
+$('btnCloseZpl').onclick=()=>$('zplModal').hidden=true;
+$('labelW').onchange=e=>setLabelProp('width',e.target.value);
+$('labelH').onchange=e=>setLabelProp('height',e.target.value);
+$('dpi').onchange=e=>setLabelProp('dpi',e.target.value);
+window.addEventListener('resize',()=>render());
+window.addEventListener('keydown',e=>{
+  const tag=(e.target?.tagName||'').toLowerCase();
+  const editing=['input','textarea','select'].includes(tag);
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}
+  if(editing)return;
+  const o=selected();if(!o)return;
+  const step=e.shiftKey?1:.1;
+  let changed=false;
+  if(e.key==='ArrowLeft'){o.x=mm(o.x-step,0,Math.max(0,state.label.widthMm-o.w));changed=true;}
+  if(e.key==='ArrowRight'){o.x=mm(o.x+step,0,Math.max(0,state.label.widthMm-o.w));changed=true;}
+  if(e.key==='ArrowUp'){o.y=mm(o.y-step,0,Math.max(0,state.label.heightMm-o.h));changed=true;}
+  if(e.key==='ArrowDown'){o.y=mm(o.y+step,0,Math.max(0,state.label.heightMm-o.h));changed=true;}
+  if(e.key==='Delete'){deleteSelected();return;}
+  if(changed){saveCurrent();render();}
+});
+loadCurrent();
+serialEventHandlers();
+render();
+</script>
+</body>
+</html>
