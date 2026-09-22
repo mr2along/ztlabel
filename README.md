@@ -5,8 +5,9 @@ Web label designer for Zebra ZT410, kept under `/v2/` so the existing root appli
 ## Core scope
 
 - 40 × 25 mm default label
+- Preset label sizes plus custom W/H in mm (up to 300 mm in the editor)
 - 203 / 300 DPI with ZT410 dot-density mapping (8 / 12 dots per mm)
-- Text, Code128, QR, Line, Box
+- Text, Code128, QR, Line, Box, Image (`^GFA` monochrome)
 - Mouse/touch drag
 - X / Y / W / H property editing
 - Duplicate / Delete / Clear
@@ -16,6 +17,7 @@ Web label designer for Zebra ZT410, kept under `/v2/` so the existing root appli
 - Save / Load named templates
 - JSON import / export
 - ZPL preview and clipboard copy
+- Image insertion from PNG/JPEG/WebP/BMP with monochrome threshold and size mapping to ZPL
 - Web Serial connect / disconnect / print
 - Print copies
 - UTF-8 ZPL with `^CI28`
