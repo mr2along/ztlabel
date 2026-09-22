@@ -718,8 +718,9 @@ function imageToZpl(o,dpi){
       ctx.save();
       ctx.translate(targetW/2,targetH/2);
       ctx.rotate((Number(o.rotation||0)*Math.PI)/180);
-      const rw=Math.abs(Math.cos((Number(o.rotation||0)*Math.PI)/180))*targetW+Math.abs(Math.sin((Number(o.rotation||0)*Math.PI)/180))*targetH;
-      const rh=Math.abs(Math.sin((Number(o.rotation||0)*Math.PI)/180))*targetW+Math.abs(Math.cos((Number(o.rotation||0)*Math.PI)/180))*targetH;
+      const angle=(Number(o.rotation||0)*Math.PI)/180;
+      const rw=Math.abs(Math.cos(angle))*targetW+Math.abs(Math.sin(angle))*targetH;
+      const rh=Math.abs(Math.sin(angle))*targetW+Math.abs(Math.cos(angle))*targetH;
       if(mode==='fill')ctx.drawImage(img,-targetW/2,-targetH/2,targetW,targetH);
       else{
         const scale=mode==='crop'?Math.max(rw/iw,rh/ih):Math.min(rw/iw,rh/ih);
@@ -744,24 +745,32 @@ async function buildZpl(overrides={}){
   let out='^XA^CI28^PW'+dots(l.widthMm,dpi)+'^LL'+dots(l.heightMm,dpi);
   for(const o of l.objects){
     const x=dots(o.x,dpi),y=dots(o.y,dpi);
-    const fw={0:'N',90:'R',180:'I',270:'B'}[o.rotation||0]||'N';
+    const rot=Number(o.rotation||0);
+    const fw={0:'N',90:'R',180:'I',270:'B'}[rot]||'N';
+    const quarter=rot===90||rot===270;
     out+='^FW'+fw;
     if(o.type==='text'){
-      const fs=Math.max(8,dots(o.fontSize,dpi)),bw=Math.max(1,dots(o.w,dpi));
-      const lines=Math.max(1,Math.floor((o.h*DOTS_PER_MM[dpi])/Math.max(1,fs)));
-      out+='^FO'+x+','+y+'^A0'+fw+','+fs+','+fs+'^FB'+bw+','+lines+',0,L,0^FD'+cleanData(resolveText(o.text,overrides))+'^FS';
+      const fs=Math.max(8,dots(o.fontSize,dpi));
+      const fieldW=Math.max(1,dots(quarter?o.h:o.w,dpi));
+      const fieldH=Math.max(1,dots(quarter?o.w:o.h,dpi));
+      const lines=Math.max(1,Math.floor(fieldH/Math.max(1,fs)));
+      out+='^FO'+x+','+y+'^A0'+fw+','+fs+','+fs+'^FB'+fieldW+','+lines+',0,L,0^FD'+cleanData(resolveText(o.text,overrides))+'^FS';
     }else if(o.type==='barcode'){
-      out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BC'+fw+','+Math.max(8,dots(o.h,dpi))+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(resolveText(o.data,overrides))+'^FS';
+      const barH=Math.max(8,dots(quarter?o.w:o.h,dpi));
+      out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BC'+fw+','+barH+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(resolveText(o.data,overrides))+'^FS';
     }else if(o.type==='qr'){
       out+='^FO'+x+','+y+'^BQ'+fw+',2,'+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(resolveText(o.data,overrides))+'^FS';
     }else if(o.type==='image'){
       const b=await imageToZpl(o,dpi);
       const total=b.hex.length/2;
-      out+='^FO'+x+','+y+'^GFA,'+total+','+total+','+b.bytesPerRow+','+b.hex+'^FS';
+      // imageToZpl already rasterizes the object's rotation, so keep GF orientation normal.
+      out+='^FWN^FO'+x+','+y+'^GFA,'+total+','+total+','+b.bytesPerRow+','+b.hex+'^FS';
     }else if(o.type==='line'){
-      out+='^FO'+x+','+y+'^GB'+Math.max(1,dots(o.w,dpi))+','+Math.max(1,dots(o.h,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
+      const lw=quarter?o.h:o.w,lh=quarter?o.w:o.h;
+      out+='^FWN^FO'+x+','+y+'^GB'+Math.max(1,dots(lw,dpi))+','+Math.max(1,dots(lh,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
     }else if(o.type==='box'){
-      out+='^FO'+x+','+y+'^GB'+Math.max(1,dots(o.w,dpi))+','+Math.max(1,dots(o.h,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
+      const bw=quarter?o.h:o.w,bh=quarter?o.w:o.h;
+      out+='^FWN^FO'+x+','+y+'^GB'+Math.max(1,dots(bw,dpi))+','+Math.max(1,dots(bh,dpi))+','+Math.max(1,dots(o.thickness||.5,dpi))+'^FS';
     }
   }
   return out+'^XZ\n';
