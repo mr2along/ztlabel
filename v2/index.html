@@ -734,7 +734,7 @@ async function buildZpl(overrides={}){
     }else if(o.type==='barcode'){
       out+='^FO'+x+','+y+'^BY'+Math.max(1,Math.round(o.moduleWidth||2))+'^BC'+fw+','+Math.max(8,dots(o.h,dpi))+','+(o.humanReadable?'Y':'N')+',N,N^FD'+cleanData(resolveText(o.data,overrides))+'^FS';
     }else if(o.type==='qr'){
-      out+='^FO'+x+','+y+'^BQN,2,'+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(resolveText(o.data,overrides))+'^FS';
+      out+='^FO'+x+','+y+'^BQ'+fw+',2,'+Math.max(1,Math.min(10,Math.round(o.magnification||4)))+'^FDLA'+cleanData(resolveText(o.data,overrides))+'^FS';
     }else if(o.type==='image'){
       const b=await imageToZpl(o,dpi);
       const total=b.hex.length/2;
