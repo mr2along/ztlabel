@@ -37,3 +37,9 @@ jobs:
           grep -q "labelPreset" v2/index.html
           grep -q "btnImage" v2/index.html
           grep -q "\\^GFA" v2/index.html
+          grep -q "resize-handle" v2/index.html
+          grep -q "resolveText" v2/index.html
+          grep -q "Batch Print" v2/index.html
+          grep -q "queryPrinterStatus" v2/index.html
+          grep -q "tryAutoReconnect" v2/index.html
+          grep -q "STORE_HISTORY" v2/index.html
