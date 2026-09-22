@@ -34,3 +34,6 @@ jobs:
           grep -q "DOTS_PER_MM" v2/index.html
           grep -q "navigator.serial" v2/index.html
           grep -q "writer.releaseLock" v2/index.html
+          grep -q "labelPreset" v2/index.html
+          grep -q "btnImage" v2/index.html
+          grep -q "\\^GFA" v2/index.html
